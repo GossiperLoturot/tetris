@@ -1,0 +1,9 @@
+[package]
+name = "tetris-wgpu"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pollster = "0.3"
+wgpu = "0.16"
+winit = "0.28"
