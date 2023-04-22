@@ -89,6 +89,19 @@ impl State {
     fn match_id(&self, id: winit::window::WindowId) -> bool {
         self.window.id() == id
     }
+
+    fn request_redraw(&self) {
+        self.window.request_redraw();
+    }
+
+    fn resize(&mut self, size: winit::dpi::PhysicalSize<u32>) {
+        if 0 < size.width && 0 < size.height {
+            self.size = size;
+            self.config.width = size.width;
+            self.config.height = size.height;
+            self.surface.configure(&self.device, &self.config);
+        }
+    }
 }
 
 async fn start() {
@@ -100,8 +113,29 @@ async fn start() {
     let mut state = State::new_async(window).await;
 
     use winit::event::Event;
-    event_loop.run(move |event, _, _| match event {
-        Event::RedrawRequested(id) if state.match_id(id) => state.render(),
+    use winit::event::WindowEvent;
+    event_loop.run(move |event, _, control_flow| match event {
+        Event::WindowEvent {
+            window_id: id,
+            ref event,
+        } if state.match_id(id) => match event {
+            WindowEvent::CloseRequested => {
+                *control_flow = winit::event_loop::ControlFlow::Exit;
+            }
+            WindowEvent::Resized(size) => {
+                state.resize(*size);
+            }
+            WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                state.resize(**new_inner_size)
+            }
+            _ => {}
+        },
+        Event::RedrawRequested(id) if state.match_id(id) => {
+            state.render();
+        }
+        Event::RedrawEventsCleared => {
+            state.request_redraw();
+        }
         _ => {}
     });
 }
