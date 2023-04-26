@@ -41,6 +41,45 @@ const VERTICES: &[Vertex] = &[
 
 const INDICES: &[u16] = &[0, 1, 2];
 
+#[rustfmt::skip]
+const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 0.5, 0.0,
+    0.0, 0.0, 0.5, 1.0,
+);
+
+struct Camera {
+    eye: cgmath::Point3<f32>,
+    target: cgmath::Vector3<f32>,
+    up: cgmath::Vector3<f32>,
+    w_range: f32,
+    h_range: f32,
+    z_near: f32,
+    z_far: f32,
+}
+
+impl Camera {
+    fn build_view_proj_matrix(&self) -> cgmath::Matrix4<f32> {
+        let view = cgmath::Matrix4::look_to_rh(self.eye, self.target, self.up);
+        let proj = cgmath::ortho(
+            -self.w_range * 0.5,
+            self.w_range * 0.5,
+            -self.h_range * 0.5,
+            self.h_range * 0.5,
+            self.z_near,
+            self.z_far,
+        );
+        OPENGL_TO_WGPU_MATRIX * proj * view
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct RawCamera {
+    view_proj: [[f32; 4]; 4],
+}
+
 struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -52,6 +91,8 @@ struct State {
     vertex_buffer: wgpu::Buffer,
     num_indices: u32,
     index_buffer: wgpu::Buffer,
+    camera: Camera,
+    camera_bind_group: wgpu::BindGroup,
 }
 
 impl State {
@@ -106,6 +147,50 @@ impl State {
             usage: wgpu::BufferUsages::INDEX,
         });
 
+        let camera = Camera {
+            eye: cgmath::point3(0.0, 0.0, 10.0),
+            target: -cgmath::Vector3::unit_z(),
+            up: cgmath::Vector3::unit_y(),
+            w_range: 10.0,
+            h_range: 10.0,
+            z_near: 0.001,
+            z_far: 1000.0,
+        };
+
+        let raw_camera = RawCamera {
+            view_proj: camera.build_view_proj_matrix().into(),
+        };
+
+        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&[raw_camera]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: None,
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+            label: None,
+        });
+
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
@@ -114,7 +199,7 @@ impl State {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None,
-                bind_group_layouts: &[],
+                bind_group_layouts: &[&camera_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -164,6 +249,8 @@ impl State {
             vertex_buffer,
             num_indices,
             index_buffer,
+            camera,
+            camera_bind_group,
         }
     }
 
@@ -194,6 +281,7 @@ impl State {
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
         render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         drop(render_pass);
 
