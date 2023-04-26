@@ -60,7 +60,7 @@ struct Camera {
 }
 
 impl Camera {
-    fn build_view_proj_matrix(&self) -> cgmath::Matrix4<f32> {
+    fn build(&self) -> RawCamera {
         let view = cgmath::Matrix4::look_to_rh(self.eye, self.target, self.up);
         let proj = cgmath::ortho(
             -self.w_range * 0.5,
@@ -70,7 +70,11 @@ impl Camera {
             self.z_near,
             self.z_far,
         );
-        OPENGL_TO_WGPU_MATRIX * proj * view
+        let view_proj = OPENGL_TO_WGPU_MATRIX * proj * view;
+
+        RawCamera {
+            view_proj: view_proj.into(),
+        }
     }
 }
 
@@ -157,13 +161,9 @@ impl State {
             z_far: 1000.0,
         };
 
-        let raw_camera = RawCamera {
-            view_proj: camera.build_view_proj_matrix().into(),
-        };
-
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(&[raw_camera]),
+            contents: bytemuck::cast_slice(&[camera.build()]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
