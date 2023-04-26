@@ -4,6 +4,9 @@ fn main() {
     pollster::block_on(start());
 }
 
+const WIDTH: f32 = 10.0;
+const HEIGHT: f32 = 20.0;
+
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct Vertex {
@@ -60,6 +63,17 @@ struct Camera {
 }
 
 impl Camera {
+    fn get_contain_clipping(
+        target_clipping: (f32, f32),
+        window_size: winit::dpi::PhysicalSize<u32>,
+    ) -> (f32, f32) {
+        let aspect = window_size.width as f32 / window_size.height as f32;
+        (
+            target_clipping.0.max(target_clipping.1 * aspect),
+            target_clipping.1.max(target_clipping.0 / aspect),
+        )
+    }
+
     fn build(&self) -> RawCamera {
         let view = cgmath::Matrix4::look_to_rh(self.eye, self.target, self.up);
         let proj = cgmath::ortho(
@@ -96,6 +110,7 @@ struct State {
     num_indices: u32,
     index_buffer: wgpu::Buffer,
     camera: Camera,
+    camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
 }
 
@@ -151,12 +166,13 @@ impl State {
             usage: wgpu::BufferUsages::INDEX,
         });
 
+        let clipping = Camera::get_contain_clipping((WIDTH, HEIGHT), size);
         let camera = Camera {
             eye: cgmath::point3(0.0, 0.0, 10.0),
             target: -cgmath::Vector3::unit_z(),
             up: cgmath::Vector3::unit_y(),
-            w_range: 10.0,
-            h_range: 10.0,
+            w_range: clipping.0,
+            h_range: clipping.1,
             z_near: 0.001,
             z_far: 1000.0,
         };
@@ -250,6 +266,7 @@ impl State {
             num_indices,
             index_buffer,
             camera,
+            camera_buffer,
             camera_bind_group,
         }
     }
@@ -304,6 +321,15 @@ impl State {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
+
+            let clipping = Camera::get_contain_clipping((WIDTH, HEIGHT), new_size);
+            self.camera.w_range = clipping.0;
+            self.camera.h_range = clipping.1;
+            self.queue.write_buffer(
+                &self.camera_buffer,
+                0,
+                bytemuck::cast_slice(&[self.camera.build()]),
+            );
         }
     }
 }
