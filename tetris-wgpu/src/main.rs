@@ -1,3 +1,4 @@
+mod bg;
 mod models;
 mod quad;
 
@@ -7,8 +8,8 @@ fn main() {
     pollster::block_on(start());
 }
 
-const WIDTH: f32 = 10.0;
-const HEIGHT: f32 = 20.0;
+pub const WIDTH: f32 = 10.0;
+pub const HEIGHT: f32 = 20.0;
 
 struct State {
     surface: wgpu::Surface,
@@ -20,6 +21,7 @@ struct State {
     camera: models::Camera,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
+    bg: bg::Bg,
     quad: quad::Quad,
 }
 
@@ -100,6 +102,7 @@ impl State {
             label: None,
         });
 
+        let bg = bg::Bg::new(&device, &config, &camera_bind_group_layout);
         let quad = quad::Quad::new(&device, &config, &camera_bind_group_layout);
 
         Self {
@@ -112,6 +115,7 @@ impl State {
             camera,
             camera_buffer,
             camera_bind_group,
+            bg,
             quad,
         }
     }
@@ -140,6 +144,7 @@ impl State {
             label: None,
         });
 
+        self.bg.render(&mut render_pass, &self.camera_bind_group);
         self.quad.render(&mut render_pass, &self.camera_bind_group);
         drop(render_pass);
 
