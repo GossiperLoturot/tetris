@@ -1,4 +1,5 @@
 mod models;
+mod quad;
 
 use wgpu::util::DeviceExt;
 
@@ -16,15 +17,10 @@ struct State {
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     window: winit::window::Window,
-    render_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    num_indices: u32,
-    index_buffer: wgpu::Buffer,
     camera: models::Camera,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
-    instances: Vec<models::Instance>,
-    instance_buffer: wgpu::Buffer,
+    quad: quad::Quad,
 }
 
 impl State {
@@ -62,66 +58,6 @@ impl State {
         };
 
         surface.configure(&device, &config);
-
-        let vertices = [
-            models::Vertex {
-                position: [0.0, 0.0, 0.0],
-                color: [0.0, 0.0, 0.0],
-            },
-            models::Vertex {
-                position: [1.0, 0.0, 0.0],
-                color: [1.0, 0.0, 0.0],
-            },
-            models::Vertex {
-                position: [1.0, 1.0, 0.0],
-                color: [1.0, 1.0, 0.0],
-            },
-            models::Vertex {
-                position: [0.0, 1.0, 0.0],
-                color: [0.0, 1.0, 0.0],
-            },
-        ];
-
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&vertices),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        let vertex_buffer_layout = models::Vertex::layout();
-
-        let indices: [u16; 6] = [0, 1, 2, 0, 2, 3];
-
-        let num_indices = indices.len() as u32;
-
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&indices),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-
-        let instances = vec![
-            models::Instance {
-                position: [0.0, 0.0, 0.0],
-            },
-            models::Instance {
-                position: [1.0, 0.0, 0.0],
-            },
-            models::Instance {
-                position: [1.0, 1.0, 0.0],
-            },
-            models::Instance {
-                position: [0.0, 1.0, 0.0],
-            },
-        ];
-
-        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&instances),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        let instance_buffer_layout = models::Instance::layout();
 
         let clipping = models::Camera::get_contain_clipping((WIDTH, HEIGHT), size);
         let camera = models::Camera {
@@ -164,52 +100,7 @@ impl State {
             label: None,
         });
 
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: None,
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
-        });
-
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: None,
-                bind_group_layouts: &[&camera_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: None,
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &[vertex_buffer_layout, instance_buffer_layout],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                unclipped_depth: false,
-                polygon_mode: wgpu::PolygonMode::Fill,
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-        });
+        let quad = quad::Quad::new(&device, &config, &camera_bind_group_layout);
 
         Self {
             surface,
@@ -218,15 +109,10 @@ impl State {
             config,
             size,
             window,
-            render_pipeline,
-            vertex_buffer,
-            num_indices,
-            index_buffer,
             camera,
             camera_buffer,
             camera_bind_group,
-            instances,
-            instance_buffer,
+            quad,
         }
     }
 
@@ -254,12 +140,7 @@ impl State {
             label: None,
         });
 
-        render_pass.set_pipeline(&self.render_pipeline);
-        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
-        render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
+        self.quad.render(&mut render_pass, &self.camera_bind_group);
         drop(render_pass);
 
         self.queue.submit([encoder.finish()]);
