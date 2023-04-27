@@ -98,6 +98,39 @@ struct RawCamera {
     view_proj: [[f32; 4]; 4],
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct Instance {
+    position: [f32; 3],
+}
+
+impl Instance {
+    const ATTRIBUTES: [wgpu::VertexAttribute; 1] = wgpu::vertex_attr_array![2 => Float32x3];
+
+    fn layout<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &Self::ATTRIBUTES,
+        }
+    }
+}
+
+const INSTANCES: &[Instance] = &[
+    Instance {
+        position: [0.0, 0.0, 0.0],
+    },
+    Instance {
+        position: [1.0, 0.0, 0.0],
+    },
+    Instance {
+        position: [1.0, 1.0, 0.0],
+    },
+    Instance {
+        position: [0.0, 1.0, 0.0],
+    },
+];
+
 struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -112,6 +145,8 @@ struct State {
     camera: Camera,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
+    instances: Vec<Instance>,
+    instance_buffer: wgpu::Buffer,
 }
 
 impl State {
@@ -207,6 +242,16 @@ impl State {
             label: None,
         });
 
+        let instances = INSTANCES.to_vec();
+
+        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&instances),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let instance_buffer_layout = Instance::layout();
+
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
@@ -225,7 +270,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[vertex_buffer_layout],
+                buffers: &[vertex_buffer_layout, instance_buffer_layout],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -268,6 +313,8 @@ impl State {
             camera,
             camera_buffer,
             camera_bind_group,
+            instances,
+            instance_buffer,
         }
     }
 
@@ -297,9 +344,10 @@ impl State {
 
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
-        render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+        render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
         drop(render_pass);
 
         self.queue.submit([encoder.finish()]);
