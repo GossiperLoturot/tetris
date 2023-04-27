@@ -7,7 +7,7 @@ struct Vertex {
 }
 
 impl Vertex {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 1] = wgpu::vertex_attr_array![0 => Float32x3];
+    const ATTRIBUTES: &[wgpu::VertexAttribute] = &wgpu::vertex_attr_array![0 => Float32x3];
 
     fn layout<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
@@ -26,8 +26,8 @@ struct Instance {
 }
 
 impl Instance {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![1 => Float32x3, 2 => Float32x3];
+    const ATTRIBUTES: &[wgpu::VertexAttribute] =
+        &wgpu::vertex_attr_array![1 => Float32x3, 2 => Float32x3];
 
     fn layout<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
