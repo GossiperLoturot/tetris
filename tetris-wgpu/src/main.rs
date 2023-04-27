@@ -1,3 +1,5 @@
+mod models;
+
 use wgpu::util::DeviceExt;
 
 fn main() {
@@ -6,130 +8,6 @@ fn main() {
 
 const WIDTH: f32 = 10.0;
 const HEIGHT: f32 = 20.0;
-
-#[repr(C)]
-#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
-    position: [f32; 3],
-    color: [f32; 3],
-}
-
-impl Vertex {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
-
-    fn layout<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &Self::ATTRIBUTES,
-        }
-    }
-}
-
-const VERTICES: &[Vertex] = &[
-    Vertex {
-        position: [0.0, 0.5, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [-0.5, -0.5, 0.0],
-        color: [0.0, 1.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, 0.0],
-        color: [0.0, 0.0, 1.0],
-    },
-];
-
-const INDICES: &[u16] = &[0, 1, 2];
-
-#[rustfmt::skip]
-const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.0,
-    0.0, 0.0, 0.5, 1.0,
-);
-
-struct Camera {
-    eye: cgmath::Point3<f32>,
-    target: cgmath::Vector3<f32>,
-    up: cgmath::Vector3<f32>,
-    w_range: f32,
-    h_range: f32,
-    z_near: f32,
-    z_far: f32,
-}
-
-impl Camera {
-    fn get_contain_clipping(
-        target_clipping: (f32, f32),
-        window_size: winit::dpi::PhysicalSize<u32>,
-    ) -> (f32, f32) {
-        let aspect = window_size.width as f32 / window_size.height as f32;
-        (
-            target_clipping.0.max(target_clipping.1 * aspect),
-            target_clipping.1.max(target_clipping.0 / aspect),
-        )
-    }
-
-    fn build(&self) -> RawCamera {
-        let view = cgmath::Matrix4::look_to_rh(self.eye, self.target, self.up);
-        let proj = cgmath::ortho(
-            -self.w_range * 0.5,
-            self.w_range * 0.5,
-            -self.h_range * 0.5,
-            self.h_range * 0.5,
-            self.z_near,
-            self.z_far,
-        );
-        let view_proj = OPENGL_TO_WGPU_MATRIX * proj * view;
-
-        RawCamera {
-            view_proj: view_proj.into(),
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-struct RawCamera {
-    view_proj: [[f32; 4]; 4],
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-struct Instance {
-    position: [f32; 3],
-}
-
-impl Instance {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 1] = wgpu::vertex_attr_array![2 => Float32x3];
-
-    fn layout<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &Self::ATTRIBUTES,
-        }
-    }
-}
-
-const INSTANCES: &[Instance] = &[
-    Instance {
-        position: [0.0, 0.0, 0.0],
-    },
-    Instance {
-        position: [1.0, 0.0, 0.0],
-    },
-    Instance {
-        position: [1.0, 1.0, 0.0],
-    },
-    Instance {
-        position: [0.0, 1.0, 0.0],
-    },
-];
 
 struct State {
     surface: wgpu::Surface,
@@ -142,10 +20,10 @@ struct State {
     vertex_buffer: wgpu::Buffer,
     num_indices: u32,
     index_buffer: wgpu::Buffer,
-    camera: Camera,
+    camera: models::Camera,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
-    instances: Vec<Instance>,
+    instances: Vec<models::Instance>,
     instance_buffer: wgpu::Buffer,
 }
 
@@ -185,24 +63,68 @@ impl State {
 
         surface.configure(&device, &config);
 
+        let vertices = [
+            models::Vertex {
+                position: [0.0, 0.0, 0.0],
+                color: [0.0, 0.0, 0.0],
+            },
+            models::Vertex {
+                position: [1.0, 0.0, 0.0],
+                color: [1.0, 0.0, 0.0],
+            },
+            models::Vertex {
+                position: [1.0, 1.0, 0.0],
+                color: [1.0, 1.0, 0.0],
+            },
+            models::Vertex {
+                position: [0.0, 1.0, 0.0],
+                color: [0.0, 1.0, 0.0],
+            },
+        ];
+
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(VERTICES),
+            contents: bytemuck::cast_slice(&vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        let vertex_buffer_layout = Vertex::layout();
+        let vertex_buffer_layout = models::Vertex::layout();
 
-        let num_indices = INDICES.len() as u32;
+        let indices: [u16; 6] = [0, 1, 2, 0, 2, 3];
+
+        let num_indices = indices.len() as u32;
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(INDICES),
+            contents: bytemuck::cast_slice(&indices),
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        let clipping = Camera::get_contain_clipping((WIDTH, HEIGHT), size);
-        let camera = Camera {
+        let instances = vec![
+            models::Instance {
+                position: [0.0, 0.0, 0.0],
+            },
+            models::Instance {
+                position: [1.0, 0.0, 0.0],
+            },
+            models::Instance {
+                position: [1.0, 1.0, 0.0],
+            },
+            models::Instance {
+                position: [0.0, 1.0, 0.0],
+            },
+        ];
+
+        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&instances),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let instance_buffer_layout = models::Instance::layout();
+
+        let clipping = models::Camera::get_contain_clipping((WIDTH, HEIGHT), size);
+        let camera = models::Camera {
             eye: cgmath::point3(0.0, 0.0, 10.0),
             target: -cgmath::Vector3::unit_z(),
             up: cgmath::Vector3::unit_y(),
@@ -241,16 +163,6 @@ impl State {
             }],
             label: None,
         });
-
-        let instances = INSTANCES.to_vec();
-
-        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&instances),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        let instance_buffer_layout = Instance::layout();
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
@@ -370,7 +282,7 @@ impl State {
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
 
-            let clipping = Camera::get_contain_clipping((WIDTH, HEIGHT), new_size);
+            let clipping = models::Camera::get_contain_clipping((WIDTH, HEIGHT), new_size);
             self.camera.w_range = clipping.0;
             self.camera.h_range = clipping.1;
             self.queue.write_buffer(
