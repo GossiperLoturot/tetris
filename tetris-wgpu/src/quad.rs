@@ -1,21 +1,55 @@
 use wgpu::util::DeviceExt;
 
-const VERTICES: &[crate::models::Vertex] = &[
-    crate::models::Vertex {
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct Vertex {
+    position: [f32; 3],
+}
+
+impl Vertex {
+    const ATTRIBUTES: [wgpu::VertexAttribute; 1] = wgpu::vertex_attr_array![0 => Float32x3];
+
+    fn layout<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &Self::ATTRIBUTES,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct Instance {
+    color: [f32; 3],
+    position: [f32; 3],
+}
+
+impl Instance {
+    const ATTRIBUTES: [wgpu::VertexAttribute; 2] =
+        wgpu::vertex_attr_array![1 => Float32x3, 2 => Float32x3];
+
+    fn layout<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &Self::ATTRIBUTES,
+        }
+    }
+}
+
+const VERTICES: &[Vertex] = &[
+    Vertex {
         position: [0.0, 0.0, 0.0],
-        color: [0.0, 0.0, 0.0],
     },
-    crate::models::Vertex {
+    Vertex {
         position: [1.0, 0.0, 0.0],
-        color: [1.0, 0.0, 0.0],
     },
-    crate::models::Vertex {
+    Vertex {
         position: [1.0, 1.0, 0.0],
-        color: [1.0, 1.0, 0.0],
     },
-    crate::models::Vertex {
+    Vertex {
         position: [0.0, 1.0, 0.0],
-        color: [0.0, 1.0, 0.0],
     },
 ];
 
@@ -77,10 +111,7 @@ impl Quad {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[
-                    crate::models::Vertex::layout(),
-                    crate::models::Instance::layout(),
-                ],
+                buffers: &[Vertex::layout(), Instance::layout()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,

@@ -1,21 +1,41 @@
 use wgpu::util::DeviceExt;
 
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct Vertex {
+    position: [f32; 3],
+    color: [f32; 3],
+}
+
+impl Vertex {
+    const ATTRIBUTES: [wgpu::VertexAttribute; 2] =
+        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
+
+    fn layout<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &Self::ATTRIBUTES,
+        }
+    }
+}
+
 const COLOR: [f32; 3] = [0.0, 0.0, 0.0];
 
-const VERTICES: &[crate::models::Vertex] = &[
-    crate::models::Vertex {
+const VERTICES: &[Vertex] = &[
+    Vertex {
         position: [-crate::WIDTH * 0.5, -crate::HEIGHT * 0.5, 0.0],
         color: COLOR,
     },
-    crate::models::Vertex {
+    Vertex {
         position: [crate::WIDTH * 0.5, -crate::HEIGHT * 0.5, 0.0],
         color: COLOR,
     },
-    crate::models::Vertex {
+    Vertex {
         position: [crate::WIDTH * 0.5, crate::HEIGHT * 0.5, 0.0],
         color: COLOR,
     },
-    crate::models::Vertex {
+    Vertex {
         position: [-crate::WIDTH * 0.5, crate::HEIGHT * 0.5, 0.0],
         color: COLOR,
     },
@@ -68,7 +88,7 @@ impl Bg {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[crate::models::Vertex::layout()],
+                buffers: &[Vertex::layout()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
