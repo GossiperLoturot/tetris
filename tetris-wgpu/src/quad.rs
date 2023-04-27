@@ -19,27 +19,12 @@ const VERTICES: &[crate::models::Vertex] = &[
     },
 ];
 
-const INSTANCES: &[crate::models::Instance] = &[
-    crate::models::Instance {
-        position: [0.0, 0.0, 0.0],
-    },
-    crate::models::Instance {
-        position: [1.0, 0.0, 0.0],
-    },
-    crate::models::Instance {
-        position: [1.0, 1.0, 0.0],
-    },
-    crate::models::Instance {
-        position: [0.0, 1.0, 0.0],
-    },
-];
-
 const INDICES: &[u16] = &[0, 1, 2, 0, 2, 3];
 
 pub struct Quad {
-    instances: Vec<crate::models::Instance>,
     vertex_buffer: wgpu::Buffer,
     instance_buffer: wgpu::Buffer,
+    num_instances: u32,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
     render_pipeline: wgpu::RenderPipeline,
@@ -51,19 +36,20 @@ impl Quad {
         config: &wgpu::SurfaceConfiguration,
         camera_bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Self {
-        let instances = INSTANCES.to_vec();
-
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice(VERTICES),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(&instances),
-            usage: wgpu::BufferUsages::VERTEX,
+            size: device.limits().max_buffer_size,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
         });
+
+        let num_instances = 0;
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
@@ -124,9 +110,9 @@ impl Quad {
         });
 
         Self {
-            instances,
             vertex_buffer,
             instance_buffer,
+            num_instances,
             index_buffer,
             num_indices,
             render_pipeline,
@@ -143,6 +129,6 @@ impl Quad {
         render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         render_pass.set_bind_group(0, camera_bind_group, &[]);
-        render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
+        render_pass.draw_indexed(0..self.num_indices, 0, 0..self.num_instances);
     }
 }
