@@ -17,6 +17,51 @@ pub struct BlockSet {
     pub content: Vec<(i32, i32, BlockColor)>,
 }
 
+const BLOCK_SET_CONTENTS: &[&[(i32, i32, BlockColor)]] = &[
+    &[
+        (-1, 0, BlockColor::Cyan),
+        (0, 0, BlockColor::Cyan),
+        (1, 0, BlockColor::Cyan),
+        (2, 0, BlockColor::Cyan),
+    ],
+    &[
+        (0, 0, BlockColor::Yellow),
+        (1, 0, BlockColor::Yellow),
+        (1, 1, BlockColor::Yellow),
+        (0, 1, BlockColor::Yellow),
+    ],
+    &[
+        (-1, -1, BlockColor::Green),
+        (0, -1, BlockColor::Green),
+        (0, 0, BlockColor::Green),
+        (1, 0, BlockColor::Green),
+    ],
+    &[
+        (-1, 0, BlockColor::Red),
+        (0, 0, BlockColor::Red),
+        (0, -1, BlockColor::Red),
+        (1, -1, BlockColor::Red),
+    ],
+    &[
+        (-1, 0, BlockColor::Blue),
+        (-1, -1, BlockColor::Blue),
+        (0, -1, BlockColor::Blue),
+        (1, -1, BlockColor::Blue),
+    ],
+    &[
+        (-1, -1, BlockColor::Orange),
+        (0, -1, BlockColor::Orange),
+        (1, -1, BlockColor::Orange),
+        (1, 0, BlockColor::Orange),
+    ],
+    &[
+        (-1, -1, BlockColor::Purple),
+        (0, -1, BlockColor::Purple),
+        (1, -1, BlockColor::Purple),
+        (0, 0, BlockColor::Purple),
+    ],
+];
+
 pub struct GameContext<'a> {
     pub blocks: &'a Vec<Vec<Option<BlockColor>>>,
     pub block_set: &'a Option<BlockSet>,
@@ -27,6 +72,7 @@ pub struct GameSystem {
     block_height: u32,
     spawn_block_x: i32,
     spawn_block_y: i32,
+    rng: rand::rngs::ThreadRng,
     blocks: Vec<Vec<Option<BlockColor>>>,
     block_set: Option<BlockSet>,
     pressed: HashSet<winit::event::VirtualKeyCode>,
@@ -44,6 +90,7 @@ impl GameSystem {
             block_height,
             spawn_block_x,
             spawn_block_y,
+            rng: rand::thread_rng(),
             blocks: vec![vec![None; block_width as usize]; block_height as usize],
             block_set: None,
             pressed: HashSet::new(),
@@ -88,15 +135,14 @@ impl GameSystem {
     }
 
     fn spawn_block_set(&mut self) {
+        use rand::seq::SliceRandom;
+
+        let content = BLOCK_SET_CONTENTS.choose(&mut self.rng).unwrap().to_vec();
+
         self.block_set = Some(BlockSet {
             x: self.spawn_block_x,
             y: self.spawn_block_y,
-            content: vec![
-                (0, -1, BlockColor::Red),
-                (0, 0, BlockColor::Red),
-                (0, 1, BlockColor::Red),
-                (0, 2, BlockColor::Red),
-            ],
+            content,
         });
     }
 
