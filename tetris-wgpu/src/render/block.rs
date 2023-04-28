@@ -2,16 +2,14 @@ use wgpu::util::DeviceExt;
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
-    position: [f32; 3],
-    color: [f32; 3],
+pub struct Vertex {
+    pub position: [f32; 3],
 }
 
 impl Vertex {
-    const ATTRIBUTES: &[wgpu::VertexAttribute] =
-        &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
+    const ATTRIBUTES: &[wgpu::VertexAttribute] = &wgpu::vertex_attr_array![0 => Float32x3];
 
-    fn layout<'a>() -> wgpu::VertexBufferLayout<'a> {
+    pub fn layout<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -20,37 +18,53 @@ impl Vertex {
     }
 }
 
-const COLOR: [f32; 3] = [0.0, 0.0, 0.0];
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct Instance {
+    pub position: [f32; 3],
+    pub color: [f32; 3],
+}
+
+impl Instance {
+    const ATTRIBUTES: &[wgpu::VertexAttribute] =
+        &wgpu::vertex_attr_array![1 => Float32x3, 2 => Float32x3];
+
+    pub fn layout<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &Self::ATTRIBUTES,
+        }
+    }
+}
 
 const VERTICES: &[Vertex] = &[
     Vertex {
-        position: [-crate::WIDTH * 0.5, -crate::HEIGHT * 0.5, 0.0],
-        color: COLOR,
+        position: [0.0, 0.0, 0.0],
     },
     Vertex {
-        position: [crate::WIDTH * 0.5, -crate::HEIGHT * 0.5, 0.0],
-        color: COLOR,
+        position: [1.0, 0.0, 0.0],
     },
     Vertex {
-        position: [crate::WIDTH * 0.5, crate::HEIGHT * 0.5, 0.0],
-        color: COLOR,
+        position: [1.0, 1.0, 0.0],
     },
     Vertex {
-        position: [-crate::WIDTH * 0.5, crate::HEIGHT * 0.5, 0.0],
-        color: COLOR,
+        position: [0.0, 1.0, 0.0],
     },
 ];
 
 const INDICES: &[u16] = &[0, 1, 2, 0, 2, 3];
 
-pub struct Bg {
+pub struct Renderer {
     vertex_buffer: wgpu::Buffer,
+    instance_buffer: wgpu::Buffer,
+    num_instances: u32,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
     render_pipeline: wgpu::RenderPipeline,
 }
 
-impl Bg {
+impl Renderer {
     pub fn new(
         device: &wgpu::Device,
         config: &wgpu::SurfaceConfiguration,
@@ -62,6 +76,15 @@ impl Bg {
             usage: wgpu::BufferUsages::VERTEX,
         });
 
+        let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: device.limits().max_buffer_size,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let num_instances = 0;
+
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice(INDICES),
@@ -72,7 +95,7 @@ impl Bg {
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
-            source: wgpu::ShaderSource::Wgsl(include_str!("bg.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../../assets/shaders/quad.wgsl").into()),
         });
 
         let render_pipeline_layout =
@@ -88,7 +111,7 @@ impl Bg {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[Vertex::layout()],
+                buffers: &[Vertex::layout(), Instance::layout()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -119,6 +142,8 @@ impl Bg {
 
         Self {
             vertex_buffer,
+            instance_buffer,
+            num_instances,
             index_buffer,
             num_indices,
             render_pipeline,
@@ -132,8 +157,14 @@ impl Bg {
     ) {
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         render_pass.set_bind_group(0, camera_bind_group, &[]);
-        render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+        render_pass.draw_indexed(0..self.num_indices, 0, 0..self.num_instances);
+    }
+
+    pub fn set_instances(&mut self, queue: &wgpu::Queue, instances: &[Instance]) {
+        self.num_instances = instances.len() as _;
+        queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(instances));
     }
 }
