@@ -77,6 +77,8 @@ pub struct GameSystem {
     blocks: Vec<Vec<Option<BlockColor>>>,
     block_set: Option<BlockSet>,
     pressed: HashSet<winit::event::VirtualKeyCode>,
+    last_update: Option<std::time::Instant>,
+    update_interval: std::time::Duration,
 }
 
 impl GameSystem {
@@ -85,6 +87,7 @@ impl GameSystem {
         block_height: u32,
         spawn_block_x: i32,
         spawn_block_y: i32,
+        update_interval: std::time::Duration,
     ) -> Self {
         Self {
             block_width,
@@ -95,6 +98,8 @@ impl GameSystem {
             blocks: vec![vec![None; block_width as usize]; block_height as usize],
             block_set: None,
             pressed: HashSet::new(),
+            last_update: None,
+            update_interval,
         }
     }
 
@@ -105,12 +110,6 @@ impl GameSystem {
             match input.state {
                 ElementState::Pressed if !self.pressed.contains(&virtual_keycode) => {
                     match virtual_keycode {
-                        VirtualKeyCode::Space => {
-                            self.spawn_block_set();
-                        }
-                        VirtualKeyCode::Return => {
-                            self.place_block_set();
-                        }
                         VirtualKeyCode::Up => {
                             self.rotate_block_set();
                         }
@@ -132,6 +131,23 @@ impl GameSystem {
                 }
                 _ => {}
             }
+        }
+    }
+
+    pub fn update(&mut self) {
+        if self
+            .last_update
+            .map(|last_update| self.update_interval < last_update.elapsed())
+            .unwrap_or(true)
+        {
+            self.place_block_set();
+            self.down_block_set();
+
+            if self.block_set.is_none() {
+                self.spawn_block_set();
+            }
+
+            self.last_update = Some(std::time::Instant::now());
         }
     }
 

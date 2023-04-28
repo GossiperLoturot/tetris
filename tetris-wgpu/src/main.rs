@@ -11,12 +11,17 @@ async fn start() {
         .build(&event_loop)
         .unwrap();
 
-    let mut game_system = game::GameSystem::new(10, 25, 5, 20);
+    let mut game_system =
+        game::GameSystem::new(10, 25, 5, 20, std::time::Duration::from_millis(400));
     let mut render_system = render::RenderSystem::new_async(window).await;
 
     use winit::event::Event;
+    use winit::event::StartCause;
     use winit::event::WindowEvent;
     event_loop.run(move |event, _, control_flow| match event {
+        Event::NewEvents(StartCause::Poll) => {
+            game_system.update();
+        }
         Event::WindowEvent {
             window_id,
             ref event,
