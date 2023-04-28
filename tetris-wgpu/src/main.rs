@@ -11,14 +11,12 @@ async fn start() {
         .build(&event_loop)
         .unwrap();
 
-    let mut cx = game::GameContext::new();
+    let mut cx = game::GameContext {
+        blocks: vec![vec![None; 10]; 20],
+        block_set: None,
+    };
+    let mut input_system = game::InputSystem::new();
     let mut render_system = render::RenderSystem::new_async(window).await;
-
-    cx.blocks[0][0] = Some(game::BlockColor::Red);
-    cx.blocks[0][1] = Some(game::BlockColor::Green);
-    cx.blocks[0][2] = Some(game::BlockColor::Blue);
-    cx.blocks[19][9] = Some(game::BlockColor::Orange);
-    cx.blocks[19][9] = Some(game::BlockColor::Purple);
 
     use winit::event::Event;
     use winit::event::WindowEvent;
@@ -27,6 +25,17 @@ async fn start() {
             window_id,
             ref event,
         } if render_system.match_id(window_id) => match event {
+            WindowEvent::KeyboardInput {
+                input:
+                    winit::event::KeyboardInput {
+                        state,
+                        virtual_keycode: Some(virtual_keycode),
+                        ..
+                    },
+                ..
+            } => {
+                input_system.update(&mut cx, state, virtual_keycode);
+            }
             WindowEvent::CloseRequested => {
                 *control_flow = winit::event_loop::ControlFlow::Exit;
             }

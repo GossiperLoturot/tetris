@@ -5,6 +5,18 @@ mod block;
 mod camera;
 mod constants;
 
+fn block_color_into_data(value: &game::BlockColor) -> [f32; 3] {
+    match value {
+        game::BlockColor::Cyan => constants::color::FG_CYAN,
+        game::BlockColor::Yellow => constants::color::FG_YELLOW,
+        game::BlockColor::Green => constants::color::FG_GREEN,
+        game::BlockColor::Red => constants::color::FG_RED,
+        game::BlockColor::Blue => constants::color::FG_BLUE,
+        game::BlockColor::Orange => constants::color::FG_ORANGE,
+        game::BlockColor::Purple => constants::color::FG_PURPLE,
+    }
+}
+
 pub struct RenderSystem {
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -76,23 +88,26 @@ impl RenderSystem {
         let mut instances = vec![];
         for (row, items) in cx.blocks.iter().enumerate() {
             for (col, item) in items.iter().enumerate() {
-                if let Some(block) = item {
+                if let Some(block_color) = item {
                     let position = [
                         col as f32 - constants::WIDTH * 0.5,
                         row as f32 - constants::HEIGHT * 0.5,
                         0.0,
                     ];
-                    let color = match block {
-                        game::BlockColor::Cyan => constants::color::FG_CYAN,
-                        game::BlockColor::Yellow => constants::color::FG_YELLOW,
-                        game::BlockColor::Green => constants::color::FG_GREEN,
-                        game::BlockColor::Red => constants::color::FG_RED,
-                        game::BlockColor::Blue => constants::color::FG_BLUE,
-                        game::BlockColor::Orange => constants::color::FG_ORANGE,
-                        game::BlockColor::Purple => constants::color::FG_PURPLE,
-                    };
+                    let color = block_color_into_data(block_color);
                     instances.push(block::Instance { position, color });
                 }
+            }
+        }
+        if let Some(block_set) = &cx.block_set {
+            for (col, row, block_color) in &block_set.content {
+                let position = [
+                    block_set.x as f32 + *col as f32 - constants::WIDTH * 0.5,
+                    block_set.y as f32 + *row as f32 - constants::HEIGHT * 0.5,
+                    0.0,
+                ];
+                let color = block_color_into_data(block_color);
+                instances.push(block::Instance { position, color })
             }
         }
         self.block.set_instances(&self.queue, &instances);
