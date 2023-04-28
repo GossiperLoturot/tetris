@@ -95,7 +95,7 @@ impl Renderer {
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
-            source: wgpu::ShaderSource::Wgsl(include_str!("../../assets/shaders/quad.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../../assets/shaders/block.wgsl").into()),
         });
 
         let render_pipeline_layout =

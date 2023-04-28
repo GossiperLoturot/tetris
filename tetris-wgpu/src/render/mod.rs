@@ -5,7 +5,7 @@ mod block;
 mod camera;
 mod constants;
 
-pub struct State {
+pub struct RenderSystem {
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -19,7 +19,7 @@ pub struct State {
     block: block::Renderer,
 }
 
-impl State {
+impl RenderSystem {
     pub async fn new_async(window: winit::window::Window) -> Self {
         let size = window.inner_size();
 
@@ -57,7 +57,7 @@ impl State {
 
         let camera = camera::Renderer::new(&device, size);
         let bg = bg::Renderer::new(&device, &config, &camera.camera_bind_group_layout);
-        let quad = block::Renderer::new(&device, &config, &camera.camera_bind_group_layout);
+        let block = block::Renderer::new(&device, &config, &camera.camera_bind_group_layout);
 
         Self {
             surface,
@@ -68,13 +68,13 @@ impl State {
             window,
             camera,
             bg,
-            block: quad,
+            block,
         }
     }
 
-    pub fn render(&mut self, game_data: &game::GameData) {
+    pub fn render(&mut self, cx: &game::GameContext) {
         let mut instances = vec![];
-        for (row, items) in game_data.blocks.iter().enumerate() {
+        for (row, items) in cx.blocks.iter().enumerate() {
             for (col, item) in items.iter().enumerate() {
                 if let Some(block) = item {
                     let position = [
