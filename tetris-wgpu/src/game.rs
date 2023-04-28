@@ -160,7 +160,20 @@ impl GameSystem {
     }
 
     fn place_block_set(&mut self) {
-        self.block_set = None;
+        if let Some(block_set) = self.block_set.as_ref() {
+            let mut cloned = block_set.clone();
+
+            cloned.y -= 1;
+
+            if self.is_valid_placement(block_set) && !self.is_valid_placement(&cloned) {
+                for (x, y, block_color) in block_set.content.iter() {
+                    let x = block_set.x + *x;
+                    let y = block_set.y + *y;
+                    self.blocks[y as usize][x as usize] = Some(block_color.clone());
+                }
+                self.block_set = None;
+            }
+        }
     }
 
     fn rotate_block_set(&mut self) {
