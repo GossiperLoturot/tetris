@@ -11,6 +11,7 @@ pub enum BlockColor {
     Purple,
 }
 
+#[derive(Clone)]
 pub struct BlockSet {
     pub x: i32,
     pub y: i32,
@@ -134,6 +135,18 @@ impl GameSystem {
         }
     }
 
+    fn is_valid_placement(&self, block_set: &BlockSet) -> bool {
+        block_set.content.iter().all(|(x, y, _)| {
+            let x = block_set.x + x;
+            let y = block_set.y + y;
+            0 <= x
+                && x < self.block_width as i32
+                && 0 <= y
+                && y < self.block_height as i32
+                && self.blocks[y as usize][x as usize].is_none()
+        })
+    }
+
     fn spawn_block_set(&mut self) {
         use rand::seq::SliceRandom;
 
@@ -151,24 +164,53 @@ impl GameSystem {
     }
 
     fn rotate_block_set(&mut self) {
-        self.block_set.as_mut().map(|block_set| {
-            block_set
-                .content
-                .iter_mut()
-                .for_each(|(x, y, _)| (*x, *y) = (*y, -*x))
-        });
+        if let Some(block_set) = self.block_set.as_ref() {
+            let mut cloned = block_set.clone();
+
+            for (x, y, _) in cloned.content.iter_mut() {
+                (*x, *y) = (*y, -*x);
+            }
+
+            if self.is_valid_placement(&cloned) {
+                self.block_set = Some(cloned);
+            }
+        }
     }
 
     fn down_block_set(&mut self) {
-        self.block_set.as_mut().map(|block_set| block_set.y -= 1);
+        if let Some(block_set) = self.block_set.as_ref() {
+            let mut cloned = block_set.clone();
+
+            cloned.y -= 1;
+
+            if self.is_valid_placement(&cloned) {
+                self.block_set = Some(cloned);
+            }
+        }
     }
 
     fn right_block_set(&mut self) {
-        self.block_set.as_mut().map(|block_set| block_set.x += 1);
+        if let Some(block_set) = self.block_set.as_ref() {
+            let mut cloned = block_set.clone();
+
+            cloned.x += 1;
+
+            if self.is_valid_placement(&cloned) {
+                self.block_set = Some(cloned);
+            }
+        }
     }
 
     fn left_block_set(&mut self) {
-        self.block_set.as_mut().map(|block_set| block_set.x -= 1);
+        if let Some(block_set) = self.block_set.as_ref() {
+            let mut cloned = block_set.clone();
+
+            cloned.x -= 1;
+
+            if self.is_valid_placement(&cloned) {
+                self.block_set = Some(cloned);
+            }
+        }
     }
 
     pub fn context(&self) -> GameContext {
