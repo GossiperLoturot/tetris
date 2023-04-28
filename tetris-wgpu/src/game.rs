@@ -50,56 +50,79 @@ impl GameSystem {
         }
     }
 
-    pub fn input(
-        &mut self,
-        state: &winit::event::ElementState,
-        virtual_keycode: &winit::event::VirtualKeyCode,
-    ) {
-        use winit::event::ElementState;
-        use winit::event::VirtualKeyCode;
-        match state {
-            ElementState::Pressed if !self.pressed.contains(virtual_keycode) => {
-                match virtual_keycode {
-                    VirtualKeyCode::Space => {
-                        self.block_set = Some(BlockSet {
-                            x: self.spawn_block_x,
-                            y: self.spawn_block_y,
-                            content: vec![
-                                (0, -2, BlockColor::Red),
-                                (0, -1, BlockColor::Red),
-                                (0, 0, BlockColor::Red),
-                                (0, 1, BlockColor::Red),
-                            ],
-                        });
+    pub fn input(&mut self, input: &winit::event::KeyboardInput) {
+        if let Some(virtual_keycode) = input.virtual_keycode {
+            use winit::event::ElementState;
+            use winit::event::VirtualKeyCode;
+            match input.state {
+                ElementState::Pressed if !self.pressed.contains(&virtual_keycode) => {
+                    match virtual_keycode {
+                        VirtualKeyCode::Space => {
+                            self.spawn_block_set();
+                        }
+                        VirtualKeyCode::Return => {
+                            self.place_block_set();
+                        }
+                        VirtualKeyCode::Up => {
+                            self.rotate_block_set();
+                        }
+                        VirtualKeyCode::Down => {
+                            self.down_block_set();
+                        }
+                        VirtualKeyCode::Right => {
+                            self.right_block_set();
+                        }
+                        VirtualKeyCode::Left => {
+                            self.left_block_set();
+                        }
+                        _ => {}
                     }
-                    VirtualKeyCode::Return => {
-                        self.block_set = None;
-                    }
-                    VirtualKeyCode::Up => {
-                        self.block_set.as_mut().map(|block_set| {
-                            block_set.content.iter_mut().for_each(|(x, y, _)| {
-                                (*x, *y) = (*y, -*x);
-                            });
-                        });
-                    }
-                    VirtualKeyCode::Down => {
-                        self.block_set.as_mut().map(|block_set| block_set.y -= 1);
-                    }
-                    VirtualKeyCode::Right => {
-                        self.block_set.as_mut().map(|block_set| block_set.x += 1);
-                    }
-                    VirtualKeyCode::Left => {
-                        self.block_set.as_mut().map(|block_set| block_set.x -= 1);
-                    }
-                    _ => {}
+                    self.pressed.insert(virtual_keycode);
                 }
-                self.pressed.insert(*virtual_keycode);
+                ElementState::Released => {
+                    self.pressed.remove(&virtual_keycode);
+                }
+                _ => {}
             }
-            ElementState::Released => {
-                self.pressed.remove(virtual_keycode);
-            }
-            _ => {}
         }
+    }
+
+    fn spawn_block_set(&mut self) {
+        self.block_set = Some(BlockSet {
+            x: self.spawn_block_x,
+            y: self.spawn_block_y,
+            content: vec![
+                (0, -1, BlockColor::Red),
+                (0, 0, BlockColor::Red),
+                (0, 1, BlockColor::Red),
+                (0, 2, BlockColor::Red),
+            ],
+        });
+    }
+
+    fn place_block_set(&mut self) {
+        self.block_set = None;
+    }
+
+    fn rotate_block_set(&mut self) {
+        self.block_set.as_mut().map(|block_set| {
+            block_set
+                .content
+                .iter_mut()
+                .for_each(|(x, y, _)| (*x, *y) = (*y, -*x))
+        });
+    }
+
+    fn down_block_set(&mut self) {
+        self.block_set.as_mut().map(|block_set| block_set.y -= 1);
+    }
+
+    fn right_block_set(&mut self) {
+        self.block_set.as_mut().map(|block_set| block_set.x += 1);
+    }
+
+    fn left_block_set(&mut self) {
+        self.block_set.as_mut().map(|block_set| block_set.x -= 1);
     }
 
     pub fn context(&self) -> GameContext {

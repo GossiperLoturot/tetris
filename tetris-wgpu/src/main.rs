@@ -21,16 +21,8 @@ async fn start() {
             window_id,
             ref event,
         } if render_system.match_id(window_id) => match event {
-            WindowEvent::KeyboardInput {
-                input:
-                    winit::event::KeyboardInput {
-                        state,
-                        virtual_keycode: Some(virtual_keycode),
-                        ..
-                    },
-                ..
-            } => {
-                game_system.input(state, virtual_keycode);
+            WindowEvent::KeyboardInput { input, .. } => {
+                game_system.input(input);
             }
             WindowEvent::CloseRequested => {
                 *control_flow = winit::event_loop::ControlFlow::Exit;
