@@ -172,6 +172,8 @@ impl GameSystem {
                     self.blocks[y as usize][x as usize] = Some(block_color.clone());
                 }
                 self.block_set = None;
+
+                self.erase_block_line();
             }
         }
     }
@@ -223,6 +225,26 @@ impl GameSystem {
             if self.is_valid_placement(&cloned) {
                 self.block_set = Some(cloned);
             }
+        }
+    }
+
+    fn erase_block_line(&mut self) {
+        let mut row_nums = vec![];
+
+        for (row, line) in self.blocks.iter_mut().enumerate() {
+            let fill_line = line.iter().all(|block| block.is_some());
+            if fill_line {
+                line.iter_mut().for_each(|block| *block = None);
+                row_nums.push(row);
+            }
+        }
+
+        for row in 0..self.block_height as usize {
+            let down = row_nums
+                .iter()
+                .filter(|erased_row| **erased_row < row)
+                .count();
+            self.blocks.swap(row, row - down);
         }
     }
 
