@@ -84,11 +84,11 @@ impl RenderSystem {
         }
     }
 
-    pub fn render(&mut self, cx: &game::GameContext) {
+    pub fn render(&mut self, cx: game::GameContext) {
         let mut instances = vec![];
         for (row, items) in cx.blocks.iter().enumerate() {
             for (col, item) in items.iter().enumerate() {
-                if let Some(block_color) = item {
+                if let Some(block_color) = item.as_ref() {
                     let position = [
                         col as f32 - constants::WIDTH * 0.5,
                         row as f32 - constants::HEIGHT * 0.5,
@@ -99,8 +99,8 @@ impl RenderSystem {
                 }
             }
         }
-        if let Some(block_set) = &cx.block_set {
-            for (col, row, block_color) in &block_set.content {
+        if let Some(block_set) = cx.block_set.as_ref() {
+            for (col, row, block_color) in block_set.content.iter() {
                 let position = [
                     block_set.x as f32 + *col as f32 - constants::WIDTH * 0.5,
                     block_set.y as f32 + *row as f32 - constants::HEIGHT * 0.5,

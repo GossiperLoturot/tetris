@@ -11,11 +11,7 @@ async fn start() {
         .build(&event_loop)
         .unwrap();
 
-    let mut cx = game::GameContext {
-        blocks: vec![vec![None; 10]; 20],
-        block_set: None,
-    };
-    let mut input_system = game::InputSystem::new();
+    let mut game_system = game::GameSystem::new(10, 25, 5, 20);
     let mut render_system = render::RenderSystem::new_async(window).await;
 
     use winit::event::Event;
@@ -34,7 +30,7 @@ async fn start() {
                     },
                 ..
             } => {
-                input_system.update(&mut cx, state, virtual_keycode);
+                game_system.input(state, virtual_keycode);
             }
             WindowEvent::CloseRequested => {
                 *control_flow = winit::event_loop::ControlFlow::Exit;
@@ -48,7 +44,7 @@ async fn start() {
             _ => {}
         },
         Event::RedrawRequested(window_id) if render_system.match_id(window_id) => {
-            render_system.render(&cx);
+            render_system.render(game_system.context());
         }
         Event::RedrawEventsCleared => {
             render_system.request_redraw();
