@@ -60,7 +60,11 @@ impl InputSystem {
                         cx.block_set = None;
                     }
                     VirtualKeyCode::Up => {
-                        todo!();
+                        cx.block_set.as_mut().map(|block_set| {
+                            block_set.content.iter_mut().for_each(|(x, y, _)| {
+                                (*x, *y) = (*y, -*x);
+                            });
+                        });
                     }
                     VirtualKeyCode::Down => {
                         cx.block_set.as_mut().map(|block_set| block_set.y -= 1);
