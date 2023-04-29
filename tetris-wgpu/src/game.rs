@@ -66,6 +66,7 @@ const BLOCK_SET_CONTENTS: &[&[(i32, i32, BlockColor)]] = &[
 pub struct GameContext<'a> {
     pub blocks: &'a Vec<Vec<Option<BlockColor>>>,
     pub block_set: &'a Option<BlockSet>,
+    pub score: i32,
 }
 
 pub struct GameSystem {
@@ -79,6 +80,7 @@ pub struct GameSystem {
     pressed: HashSet<winit::event::VirtualKeyCode>,
     last_update: Option<std::time::Instant>,
     update_interval: std::time::Duration,
+    score: i32,
 }
 
 impl GameSystem {
@@ -100,6 +102,7 @@ impl GameSystem {
             pressed: HashSet::new(),
             last_update: None,
             update_interval,
+            score: 0,
         }
     }
 
@@ -252,6 +255,8 @@ impl GameSystem {
             if fill_line {
                 line.iter_mut().for_each(|block| *block = None);
                 row_nums.push(row);
+
+                self.score += 1;
             }
         }
 
@@ -268,6 +273,7 @@ impl GameSystem {
         GameContext {
             blocks: &self.blocks,
             block_set: &self.block_set,
+            score: self.score,
         }
     }
 }

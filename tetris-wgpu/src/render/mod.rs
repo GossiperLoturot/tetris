@@ -24,6 +24,10 @@ pub struct RenderSystem {
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     window: winit::window::Window,
+    staging_belt: wgpu::util::StagingBelt,
+
+    // text
+    glyph_blush: wgpu_glyph::GlyphBrush<(), wgpu_glyph::ab_glyph::FontArc>,
 
     // renderer
     camera: camera::Renderer,
@@ -67,6 +71,16 @@ impl RenderSystem {
 
         surface.configure(&device, &config);
 
+        let staging_belt = wgpu::util::StagingBelt::new(1024);
+
+        let font = wgpu_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!(
+            "../../assets/fonts/Roboto-Regular.ttf"
+        ))
+        .unwrap();
+
+        let glyph_blush = wgpu_glyph::GlyphBrushBuilder::using_font(font)
+            .build(&device, surface_capabilities.formats[0]);
+
         let camera = camera::Renderer::new(&device, size);
         let bg = bg::Renderer::new(&device, &config, &camera.camera_bind_group_layout);
         let block = block::Renderer::new(&device, &config, &camera.camera_bind_group_layout);
@@ -78,6 +92,8 @@ impl RenderSystem {
             config,
             size,
             window,
+            staging_belt,
+            glyph_blush,
             camera,
             bg,
             block,
@@ -146,11 +162,38 @@ impl RenderSystem {
             .render(&mut render_pass, &self.camera.camera_bind_group);
         self.block
             .render(&mut render_pass, &self.camera.camera_bind_group);
+
         drop(render_pass);
 
+        self.glyph_blush.queue(
+            wgpu_glyph::Section::default()
+                .add_text(
+                    wgpu_glyph::Text::new(&format!("SCORE: {}", cx.score))
+                        .with_scale(constants::TEXT_SCALE)
+                        .with_color(constants::color::TEXT),
+                )
+                .with_screen_position((self.size.width as f32 * 0.5, constants::TEXT_SCALE * 0.5))
+                .with_layout(
+                    wgpu_glyph::Layout::default().h_align(wgpu_glyph::HorizontalAlign::Center),
+                ),
+        );
+
+        self.glyph_blush
+            .draw_queued(
+                &self.device,
+                &mut self.staging_belt,
+                &mut encoder,
+                &view,
+                self.size.width,
+                self.size.height,
+            )
+            .unwrap();
+
+        self.staging_belt.finish();
         self.queue.submit([encoder.finish()]);
 
         output.present();
+        self.staging_belt.recall();
     }
 
     pub fn match_id(&self, id: winit::window::WindowId) -> bool {
