@@ -58,9 +58,9 @@ impl Camera {
 
 pub struct Renderer {
     camera: Camera,
-    camera_buffer: wgpu::Buffer,
-    pub camera_bind_group_layout: wgpu::BindGroupLayout,
-    pub camera_bind_group: wgpu::BindGroup,
+    buffer: wgpu::Buffer,
+    pub bind_group_layout: wgpu::BindGroupLayout,
+    pub bind_group: wgpu::BindGroup,
 }
 
 impl Renderer {
@@ -76,41 +76,40 @@ impl Renderer {
             z_far: 1000.0,
         };
 
-        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice(&[camera.build()]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let camera_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: None,
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            });
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: None,
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
 
-        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &camera_bind_group_layout,
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
-                resource: camera_buffer.as_entire_binding(),
+                resource: buffer.as_entire_binding(),
             }],
             label: None,
         });
 
         Self {
             camera,
-            camera_buffer,
-            camera_bind_group_layout,
-            camera_bind_group,
+            buffer,
+            bind_group_layout,
+            bind_group,
         }
     }
 
@@ -120,7 +119,7 @@ impl Renderer {
         self.camera.w_range = clipping.0;
         self.camera.h_range = clipping.1;
         queue.write_buffer(
-            &self.camera_buffer,
+            &self.buffer,
             0,
             bytemuck::cast_slice(&[self.camera.build()]),
         );

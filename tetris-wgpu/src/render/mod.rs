@@ -82,8 +82,8 @@ impl RenderSystem {
             .build(&device, surface_capabilities.formats[0]);
 
         let camera = camera::Renderer::new(&device, size);
-        let bg = bg::Renderer::new(&device, &config, &camera.camera_bind_group_layout);
-        let block = block::Renderer::new(&device, &config, &camera.camera_bind_group_layout);
+        let bg = bg::Renderer::new(&device, &config, &camera.bind_group_layout);
+        let block = block::Renderer::new(&device, &config, &camera.bind_group_layout);
 
         Self {
             surface,
@@ -132,7 +132,7 @@ impl RenderSystem {
         });
 
         self.bg
-            .render(&mut render_pass, &self.camera.camera_bind_group);
+            .render(&mut render_pass, &self.camera.bind_group);
 
         drop(render_pass);
 
@@ -185,7 +185,7 @@ impl RenderSystem {
         });
 
         self.block
-            .render(&mut render_pass, &self.camera.camera_bind_group);
+            .render(&mut render_pass, &self.camera.bind_group);
 
         drop(render_pass);
 

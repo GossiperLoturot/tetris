@@ -53,7 +53,7 @@ impl Renderer {
     pub fn new(
         device: &wgpu::Device,
         config: &wgpu::SurfaceConfiguration,
-        camera_bind_group_layout: &wgpu::BindGroupLayout,
+        bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Self {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
@@ -77,7 +77,7 @@ impl Renderer {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None,
-                bind_group_layouts: &[camera_bind_group_layout],
+                bind_group_layouts: &[bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -127,12 +127,12 @@ impl Renderer {
     pub fn render<'a>(
         &'a self,
         render_pass: &mut wgpu::RenderPass<'a>,
-        camera_bind_group: &'a wgpu::BindGroup,
+        bind_group: &'a wgpu::BindGroup,
     ) {
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        render_pass.set_bind_group(0, camera_bind_group, &[]);
+        render_pass.set_bind_group(0, bind_group, &[]);
         render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
     }
 }
