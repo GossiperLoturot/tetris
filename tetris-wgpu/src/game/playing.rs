@@ -11,13 +11,6 @@ pub enum BlockColor {
     Purple,
 }
 
-#[derive(Clone)]
-pub struct BlockSet {
-    pub x: i32,
-    pub y: i32,
-    pub content: Vec<(i32, i32, BlockColor)>,
-}
-
 const BLOCK_SET_CONTENTS: &[&[(i32, i32, BlockColor)]] = &[
     &[
         (-1, 0, BlockColor::Cyan),
@@ -63,6 +56,13 @@ const BLOCK_SET_CONTENTS: &[&[(i32, i32, BlockColor)]] = &[
     ],
 ];
 
+#[derive(Clone)]
+pub struct BlockSet {
+    pub x: i32,
+    pub y: i32,
+    pub content: Vec<(i32, i32, BlockColor)>,
+}
+
 pub struct GameContext<'a> {
     pub blocks: &'a Vec<Vec<Option<BlockColor>>>,
     pub block_set: &'a Option<BlockSet>,
@@ -103,7 +103,7 @@ impl GameSystem {
         }
     }
 
-    pub fn input(&mut self, input: &winit::event::KeyboardInput) {
+    pub fn input(&mut self, input: &winit::event::KeyboardInput, flow: &mut super::GameSystemFlow) {
         if let Some(virtual_keycode) = input.virtual_keycode {
             use winit::event::ElementState;
             use winit::event::VirtualKeyCode;
@@ -134,7 +134,7 @@ impl GameSystem {
         }
     }
 
-    pub fn update(&mut self, event_sender: &winit::event_loop::EventLoopProxy<super::GameEvent>) {
+    pub fn update(&mut self, flow: &mut super::GameSystemFlow) {
         if self
             .last_update
             .map(|last_update| self.update_interval < last_update.elapsed())
@@ -147,9 +147,9 @@ impl GameSystem {
                 self.spawn_block_set();
 
                 if !self.is_valid_placement(self.block_set.as_ref().unwrap()) {
-                    event_sender
-                        .send_event(super::GameEvent::End(self.score))
-                        .unwrap();
+                    *flow = super::GameSystemFlow::To(super::GameSystem::End(
+                        super::end::GameSystem::new(self.score),
+                    ))
                 }
             }
 

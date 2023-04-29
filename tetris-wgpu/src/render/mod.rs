@@ -136,7 +136,7 @@ impl RenderSystem {
         drop(render_pass);
 
         match cx {
-            game::GameContext::Start => {
+            game::GameContext::Start(_) => {
                 self.glyph_blush.queue(
                     wgpu_glyph::Section::default()
                         .add_text(

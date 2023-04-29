@@ -6,14 +6,12 @@ fn main() {
 }
 
 async fn start() {
-    let event_loop =
-        winit::event_loop::EventLoopBuilder::<game::GameEvent>::with_user_event().build();
-    let event_sender = event_loop.create_proxy();
+    let event_loop = winit::event_loop::EventLoopBuilder::new().build();
     let window = winit::window::WindowBuilder::new()
         .build(&event_loop)
         .unwrap();
 
-    let mut game_system = game::GameSystem::new();
+    let mut game_system = game::GameSystem::Start(game::start::GameSystem::new());
     let mut render_system = render::RenderSystem::new_async(window).await;
 
     use winit::event::Event;
@@ -21,26 +19,23 @@ async fn start() {
     use winit::event::WindowEvent;
     event_loop.run(move |event, _, control_flow| match event {
         Event::NewEvents(StartCause::Poll) => {
-            game_system.update(&event_sender);
-        }
-        Event::UserEvent(event) => {
-            game_system.receive_event(event);
+            game_system.update();
         }
         Event::WindowEvent {
             window_id,
             ref event,
         } if render_system.match_id(window_id) => match event {
             WindowEvent::KeyboardInput { input, .. } => {
-                game_system.input(input, &event_sender);
+                game_system.input(input);
             }
             WindowEvent::CloseRequested => {
-                *control_flow = winit::event_loop::ControlFlow::Exit;
+                control_flow.set_exit();
             }
             WindowEvent::Resized(new_size) => {
                 render_system.resize(*new_size);
             }
             WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                render_system.resize(**new_inner_size)
+                render_system.resize(**new_inner_size);
             }
             _ => {}
         },

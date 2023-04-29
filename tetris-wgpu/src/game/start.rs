@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+pub struct GameContext;
+
 pub struct GameSystem {
     pressed: HashSet<winit::event::VirtualKeyCode>,
 }
@@ -11,11 +13,7 @@ impl GameSystem {
         }
     }
 
-    pub fn input(
-        &mut self,
-        input: &winit::event::KeyboardInput,
-        event_sender: &winit::event_loop::EventLoopProxy<super::GameEvent>,
-    ) {
+    pub fn input(&mut self, input: &winit::event::KeyboardInput, flow: &mut super::GameSystemFlow) {
         if let Some(virtual_keycode) = input.virtual_keycode {
             use winit::event::ElementState;
             use winit::event::VirtualKeyCode;
@@ -23,7 +21,9 @@ impl GameSystem {
                 ElementState::Pressed if !self.pressed.contains(&virtual_keycode) => {
                     match virtual_keycode {
                         VirtualKeyCode::Return => {
-                            event_sender.send_event(super::GameEvent::Play).unwrap();
+                            *flow = super::GameSystemFlow::To(super::GameSystem::Playing(
+                                super::playing::GameSystem::new(),
+                            ))
                         }
                         _ => {}
                     }
@@ -35,5 +35,13 @@ impl GameSystem {
                 _ => {}
             }
         }
+    }
+
+    pub fn update(&mut self, flow: &mut super::GameSystemFlow) {
+        // nothing
+    }
+
+    pub fn context(&self) -> GameContext {
+        GameContext
     }
 }

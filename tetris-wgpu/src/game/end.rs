@@ -11,6 +11,14 @@ impl GameSystem {
         Self { score }
     }
 
+    pub fn input(&mut self, input: &winit::event::KeyboardInput, flow: &mut super::GameSystemFlow) {
+        // nothing
+    }
+
+    pub fn update(&mut self, flow: &mut super::GameSystemFlow) {
+        // nothing
+    }
+
     pub fn context(&self) -> GameContext {
         GameContext { score: &self.score }
     }

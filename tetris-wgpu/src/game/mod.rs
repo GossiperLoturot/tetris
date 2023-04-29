@@ -2,14 +2,8 @@ pub mod end;
 pub mod playing;
 pub mod start;
 
-#[derive(Debug)]
-pub enum GameEvent {
-    Play,
-    End(i32),
-}
-
 pub enum GameContext<'a> {
-    Start,
+    Start(start::GameContext),
     Playing(playing::GameContext<'a>),
     End(end::GameContext<'a>),
 }
@@ -21,58 +15,44 @@ pub enum GameSystem {
 }
 
 impl GameSystem {
-    pub fn new() -> Self {
-        Self::Start(start::GameSystem::new())
-    }
-
-    pub fn input(
-        &mut self,
-        input: &winit::event::KeyboardInput,
-        event_sender: &winit::event_loop::EventLoopProxy<GameEvent>,
-    ) {
+    pub fn input(&mut self, input: &winit::event::KeyboardInput) {
+        let mut flow = GameSystemFlow::Default;
         match self {
-            GameSystem::Start(system) => {
-                system.input(input, event_sender);
-            }
-            GameSystem::Playing(system) => {
-                system.input(input);
-            }
-            GameSystem::End(_) => {
-                // nothing
-            }
+            GameSystem::Start(system) => system.input(input, &mut flow),
+            GameSystem::Playing(system) => system.input(input, &mut flow),
+            GameSystem::End(system) => system.input(input, &mut flow),
         }
+        flow.apply(self);
     }
 
-    pub fn update(&mut self, event_sender: &winit::event_loop::EventLoopProxy<GameEvent>) {
+    pub fn update(&mut self) {
+        let mut flow = GameSystemFlow::Default;
         match self {
-            GameSystem::Start(_) => {
-                // nothing
-            }
-            GameSystem::Playing(system) => {
-                system.update(event_sender);
-            }
-            GameSystem::End(_) => {
-                // nothing
-            }
+            GameSystem::Start(system) => system.update(&mut flow),
+            GameSystem::Playing(system) => system.update(&mut flow),
+            GameSystem::End(system) => system.update(&mut flow),
         }
-    }
-
-    pub fn receive_event(&mut self, event: GameEvent) {
-        match event {
-            GameEvent::Play => {
-                *self = GameSystem::Playing(playing::GameSystem::new());
-            }
-            GameEvent::End(score) => {
-                *self = GameSystem::End(end::GameSystem::new(score));
-            }
-        }
+        flow.apply(self);
     }
 
     pub fn context(&self) -> GameContext {
         match self {
-            GameSystem::Start(_) => GameContext::Start,
+            GameSystem::Start(system) => GameContext::Start(system.context()),
             GameSystem::Playing(system) => GameContext::Playing(system.context()),
             GameSystem::End(system) => GameContext::End(system.context()),
+        }
+    }
+}
+
+pub enum GameSystemFlow {
+    Default,
+    To(GameSystem),
+}
+
+impl GameSystemFlow {
+    pub fn apply(self, system: &mut GameSystem) {
+        if let GameSystemFlow::To(new_system) = self {
+            *system = new_system;
         }
     }
 }
