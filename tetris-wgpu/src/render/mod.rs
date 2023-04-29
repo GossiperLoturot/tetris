@@ -101,7 +101,18 @@ impl RenderSystem {
     }
 
     pub fn render(&mut self, cx: game::GameContext) {
+        let output = self.surface.get_current_texture().unwrap();
+
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+
         let mut instances = vec![];
+
         for (row, items) in cx.blocks.iter().enumerate() {
             for (col, item) in items.iter().enumerate() {
                 if let Some(block_color) = item.as_ref() {
@@ -115,6 +126,7 @@ impl RenderSystem {
                 }
             }
         }
+
         if let Some(block_set) = cx.block_set.as_ref() {
             for (col, row, block_color) in block_set.content.iter() {
                 let position = [
@@ -126,17 +138,13 @@ impl RenderSystem {
                 instances.push(block::Instance { position, color })
             }
         }
-        self.block.set_instances(&self.queue, &instances);
 
-        let output = self.surface.get_current_texture().unwrap();
-
-        let view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        self.block.set_instances(
+            &self.device,
+            &mut encoder,
+            &mut self.staging_belt,
+            &instances,
+        );
 
         let color = wgpu::Color {
             r: constants::color::BG_SUBTLE[0] as _,

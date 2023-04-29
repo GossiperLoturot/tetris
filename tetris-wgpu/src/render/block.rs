@@ -165,8 +165,22 @@ impl Renderer {
         render_pass.draw_indexed(0..self.num_indices, 0, 0..self.num_instances);
     }
 
-    pub fn set_instances(&mut self, queue: &wgpu::Queue, instances: &[Instance]) {
+    pub fn set_instances(
+        &mut self,
+        device: &wgpu::Device,
+        encoder: &mut wgpu::CommandEncoder,
+        staging_belg: &mut wgpu::util::StagingBelt,
+        instances: &[Instance],
+    ) {
         self.num_instances = instances.len() as _;
-        queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(instances));
+
+        let bytes = bytemuck::cast_slice(instances);
+
+        if let Some(size) = std::num::NonZeroU64::new(bytes.len() as _) {
+            let mut view =
+                staging_belg.write_buffer(encoder, &self.instance_buffer, 0, size, device);
+
+            view.copy_from_slice(bytes);
+        }
     }
 }
