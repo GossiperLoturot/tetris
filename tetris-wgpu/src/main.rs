@@ -6,13 +6,14 @@ fn main() {
 }
 
 async fn start() {
-    let event_loop = winit::event_loop::EventLoop::new();
+    let event_loop =
+        winit::event_loop::EventLoopBuilder::<game::GameEvent>::with_user_event().build();
+    let event_sender = event_loop.create_proxy();
     let window = winit::window::WindowBuilder::new()
         .build(&event_loop)
         .unwrap();
 
-    let mut game_system =
-        game::GameSystem::new(10, 25, 5, 20, std::time::Duration::from_millis(400));
+    let mut game_system = game::GameSystem::new();
     let mut render_system = render::RenderSystem::new_async(window).await;
 
     use winit::event::Event;
@@ -20,14 +21,17 @@ async fn start() {
     use winit::event::WindowEvent;
     event_loop.run(move |event, _, control_flow| match event {
         Event::NewEvents(StartCause::Poll) => {
-            game_system.update();
+            game_system.update(&event_sender);
+        }
+        Event::UserEvent(event) => {
+            game_system.receive_event(event);
         }
         Event::WindowEvent {
             window_id,
             ref event,
         } if render_system.match_id(window_id) => match event {
             WindowEvent::KeyboardInput { input, .. } => {
-                game_system.input(input);
+                game_system.input(input, &event_sender);
             }
             WindowEvent::CloseRequested => {
                 *control_flow = winit::event_loop::ControlFlow::Exit;

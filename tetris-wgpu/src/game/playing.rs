@@ -66,7 +66,7 @@ const BLOCK_SET_CONTENTS: &[&[(i32, i32, BlockColor)]] = &[
 pub struct GameContext<'a> {
     pub blocks: &'a Vec<Vec<Option<BlockColor>>>,
     pub block_set: &'a Option<BlockSet>,
-    pub score: i32,
+    pub score: &'a i32,
 }
 
 pub struct GameSystem {
@@ -84,24 +84,21 @@ pub struct GameSystem {
 }
 
 impl GameSystem {
-    pub fn new(
-        block_width: u32,
-        block_height: u32,
-        spawn_block_x: i32,
-        spawn_block_y: i32,
-        update_interval: std::time::Duration,
-    ) -> Self {
+    pub fn new() -> Self {
+        let block_width = 10;
+        let block_height = 25;
+
         Self {
             block_width,
             block_height,
-            spawn_block_x,
-            spawn_block_y,
+            spawn_block_x: 5,
+            spawn_block_y: 20,
             rng: rand::thread_rng(),
             blocks: vec![vec![None; block_width as usize]; block_height as usize],
             block_set: None,
             pressed: HashSet::new(),
             last_update: None,
-            update_interval,
+            update_interval: std::time::Duration::from_millis(400),
             score: 0,
         }
     }
@@ -137,7 +134,7 @@ impl GameSystem {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, event_sender: &winit::event_loop::EventLoopProxy<super::GameEvent>) {
         if self
             .last_update
             .map(|last_update| self.update_interval < last_update.elapsed())
@@ -148,6 +145,12 @@ impl GameSystem {
 
             if self.block_set.is_none() {
                 self.spawn_block_set();
+
+                if !self.is_valid_placement(self.block_set.as_ref().unwrap()) {
+                    event_sender
+                        .send_event(super::GameEvent::End(self.score))
+                        .unwrap();
+                }
             }
 
             self.last_update = Some(std::time::Instant::now());
@@ -273,7 +276,7 @@ impl GameSystem {
         GameContext {
             blocks: &self.blocks,
             block_set: &self.block_set,
-            score: self.score,
+            score: &self.score,
         }
     }
 }
