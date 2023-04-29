@@ -111,6 +111,31 @@ impl RenderSystem {
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
 
+        let color = wgpu::Color {
+            r: constants::color::BG_SUBTLE[0] as _,
+            g: constants::color::BG_SUBTLE[1] as _,
+            b: constants::color::BG_SUBTLE[2] as _,
+            a: 1.0,
+        };
+
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(color),
+                    store: true,
+                },
+            })],
+            depth_stencil_attachment: None,
+            label: None,
+        });
+
+        self.bg
+            .render(&mut render_pass, &self.camera.camera_bind_group);
+
+        drop(render_pass);
+
         let mut instances = vec![];
 
         for (row, items) in cx.blocks.iter().enumerate() {
@@ -146,19 +171,12 @@ impl RenderSystem {
             &instances,
         );
 
-        let color = wgpu::Color {
-            r: constants::color::BG_SUBTLE[0] as _,
-            g: constants::color::BG_SUBTLE[1] as _,
-            b: constants::color::BG_SUBTLE[2] as _,
-            a: 1.0,
-        };
-
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(color),
+                    load: wgpu::LoadOp::Load,
                     store: true,
                 },
             })],
@@ -166,8 +184,6 @@ impl RenderSystem {
             label: None,
         });
 
-        self.bg
-            .render(&mut render_pass, &self.camera.camera_bind_group);
         self.block
             .render(&mut render_pass, &self.camera.camera_bind_group);
 
