@@ -19,13 +19,10 @@ impl GameSystem {
             use winit::event::VirtualKeyCode;
             match input.state {
                 ElementState::Pressed if !self.pressed.contains(&virtual_keycode) => {
-                    match virtual_keycode {
-                        VirtualKeyCode::Return => {
-                            *flow = super::GameSystemFlow::To(super::GameSystem::Playing(
-                                super::playing::GameSystem::new(),
-                            ))
-                        }
-                        _ => {}
+                    if virtual_keycode == VirtualKeyCode::Return {
+                        *flow = super::GameSystemFlow::To(super::GameSystem::Playing(
+                            super::playing::GameSystem::new(),
+                        ))
                     }
                     self.pressed.insert(virtual_keycode);
                 }
@@ -37,7 +34,7 @@ impl GameSystem {
         }
     }
 
-    pub fn update(&mut self, flow: &mut super::GameSystemFlow) {
+    pub fn update(&mut self, _flow: &mut super::GameSystemFlow) {
         // nothing
     }
 
