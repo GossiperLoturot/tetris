@@ -38,19 +38,12 @@ impl Instance {
     }
 }
 
+#[rustfmt::skip]
 const VERTICES: &[Vertex] = &[
-    Vertex {
-        position: [0.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [1.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [1.0, 1.0, 0.0],
-    },
-    Vertex {
-        position: [0.0, 1.0, 0.0],
-    },
+    Vertex { position: [0.0, 0.0, 0.0] },
+    Vertex { position: [1.0, 0.0, 0.0] },
+    Vertex { position: [1.0, 1.0, 0.0] },
+    Vertex { position: [0.0, 1.0, 0.0] },
 ];
 
 const INDICES: &[u16] = &[0, 1, 2, 0, 2, 3];

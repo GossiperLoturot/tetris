@@ -21,23 +21,12 @@ impl Vertex {
     }
 }
 
+#[rustfmt::skip]
 const VERTICES: &[Vertex] = &[
-    Vertex {
-        position: [-constants::WIDTH * 0.5, -constants::HEIGHT * 0.5, 0.0],
-        color: constants::color::BG_DEFAULT,
-    },
-    Vertex {
-        position: [constants::WIDTH * 0.5, -constants::HEIGHT * 0.5, 0.0],
-        color: constants::color::BG_DEFAULT,
-    },
-    Vertex {
-        position: [constants::WIDTH * 0.5, constants::HEIGHT * 0.5, 0.0],
-        color: constants::color::BG_DEFAULT,
-    },
-    Vertex {
-        position: [-constants::WIDTH * 0.5, constants::HEIGHT * 0.5, 0.0],
-        color: constants::color::BG_DEFAULT,
-    },
+    Vertex { position: [-constants::WIDTH * 0.5, -constants::HEIGHT * 0.5, 0.0], color: constants::color::BG_DEFAULT },
+    Vertex { position: [ constants::WIDTH * 0.5, -constants::HEIGHT * 0.5, 0.0], color: constants::color::BG_DEFAULT },
+    Vertex { position: [ constants::WIDTH * 0.5,  constants::HEIGHT * 0.5, 0.0], color: constants::color::BG_DEFAULT },
+    Vertex { position: [-constants::WIDTH * 0.5,  constants::HEIGHT * 0.5, 0.0], color: constants::color::BG_DEFAULT },
 ];
 
 const INDICES: &[u16] = &[0, 1, 2, 0, 2, 3];

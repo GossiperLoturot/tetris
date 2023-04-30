@@ -103,7 +103,11 @@ impl GameSystem {
         }
     }
 
-    pub fn input(&mut self, input: &winit::event::KeyboardInput, _flow: &mut super::GameSystemFlow) {
+    pub fn input(
+        &mut self,
+        input: &winit::event::KeyboardInput,
+        _flow: &mut super::GameSystemFlow,
+    ) {
         if let Some(virtual_keycode) = input.virtual_keycode {
             use winit::event::ElementState;
             use winit::event::VirtualKeyCode;

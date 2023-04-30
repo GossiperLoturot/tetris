@@ -1,7 +1,7 @@
 // Vertex shader
 
 struct Camera {
-	view_proj: mat4x4<f32>,
+  view_proj: mat4x4<f32>,
 }
 
 @group(0) @binding(0)
@@ -12,7 +12,7 @@ struct VertexInput {
 };
 
 struct InstanceInput {
-		@location(1) position: vec3<f32>,
+    @location(1) position: vec3<f32>,
     @location(2) color: vec3<f32>,
 }
 
@@ -24,7 +24,7 @@ struct VertexOutput {
 @vertex
 fn vs_main(
     model: VertexInput,
-		instance: InstanceInput,
+    instance: InstanceInput,
 ) -> VertexOutput {
     var out: VertexOutput;
     out.color = instance.color;

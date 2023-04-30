@@ -11,7 +11,11 @@ impl GameSystem {
         Self { score }
     }
 
-    pub fn input(&mut self, _input: &winit::event::KeyboardInput, _flow: &mut super::GameSystemFlow) {
+    pub fn input(
+        &mut self,
+        _input: &winit::event::KeyboardInput,
+        _flow: &mut super::GameSystemFlow,
+    ) {
         // nothing
     }
 
