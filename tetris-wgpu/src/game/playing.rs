@@ -11,56 +11,23 @@ pub enum BlockColor {
     Purple,
 }
 
-const BLOCK_SET_CONTENTS: &[&[(i32, i32, BlockColor)]] = &[
-    &[
-        (-1, 0, BlockColor::Cyan),
-        (0, 0, BlockColor::Cyan),
-        (1, 0, BlockColor::Cyan),
-        (2, 0, BlockColor::Cyan),
-    ],
-    &[
-        (0, 0, BlockColor::Yellow),
-        (1, 0, BlockColor::Yellow),
-        (1, 1, BlockColor::Yellow),
-        (0, 1, BlockColor::Yellow),
-    ],
-    &[
-        (-1, -1, BlockColor::Green),
-        (0, -1, BlockColor::Green),
-        (0, 0, BlockColor::Green),
-        (1, 0, BlockColor::Green),
-    ],
-    &[
-        (-1, 0, BlockColor::Red),
-        (0, 0, BlockColor::Red),
-        (0, -1, BlockColor::Red),
-        (1, -1, BlockColor::Red),
-    ],
-    &[
-        (-1, 0, BlockColor::Blue),
-        (-1, -1, BlockColor::Blue),
-        (0, -1, BlockColor::Blue),
-        (1, -1, BlockColor::Blue),
-    ],
-    &[
-        (-1, -1, BlockColor::Orange),
-        (0, -1, BlockColor::Orange),
-        (1, -1, BlockColor::Orange),
-        (1, 0, BlockColor::Orange),
-    ],
-    &[
-        (-1, -1, BlockColor::Purple),
-        (0, -1, BlockColor::Purple),
-        (1, -1, BlockColor::Purple),
-        (0, 0, BlockColor::Purple),
-    ],
+#[rustfmt::skip]
+const BLOCK_SET_TABLE: &[(&[(i32, i32)], BlockColor)] = &[
+    (&[(-1,  0), ( 0,  0), (1,  0), (2,  0)], BlockColor::Cyan),
+    (&[( 0,  0), ( 1,  0), (1,  1), (0,  1)], BlockColor::Yellow),
+    (&[(-1, -1), ( 0, -1), (0,  0), (1,  0)], BlockColor::Green),
+    (&[(-1,  0), ( 0,  0), (0, -1), (1, -1)], BlockColor::Red),
+    (&[(-1,  0), (-1, -1), (0, -1), (1, -1)], BlockColor::Blue),
+    (&[(-1, -1), ( 0, -1), (1, -1), (1,  0)], BlockColor::Orange),
+    (&[(-1, -1), ( 0, -1), (1, -1), (0,  0)], BlockColor::Purple),
 ];
 
 #[derive(Clone)]
 pub struct BlockSet {
     pub x: i32,
     pub y: i32,
-    pub content: Vec<(i32, i32, BlockColor)>,
+    pub color: BlockColor,
+    pub content: Vec<(i32, i32)>,
 }
 
 pub struct GameContext<'a> {
@@ -162,7 +129,7 @@ impl GameSystem {
     }
 
     fn is_valid_placement(&self, block_set: &BlockSet) -> bool {
-        block_set.content.iter().all(|(x, y, _)| {
+        block_set.content.iter().all(|(x, y)| {
             let x = block_set.x + x;
             let y = block_set.y + y;
             0 <= x
@@ -176,12 +143,13 @@ impl GameSystem {
     fn spawn_block_set(&mut self) {
         use rand::seq::SliceRandom;
 
-        let content = BLOCK_SET_CONTENTS.choose(&mut self.rng).unwrap().to_vec();
+        let (content, color) = BLOCK_SET_TABLE.choose(&mut self.rng).unwrap();
 
         self.block_set = Some(BlockSet {
             x: self.spawn_block_x,
             y: self.spawn_block_y,
-            content,
+            color: color.clone(),
+            content: content.to_vec(),
         });
     }
 
@@ -192,10 +160,10 @@ impl GameSystem {
             cloned.y -= 1;
 
             if self.is_valid_placement(block_set) && !self.is_valid_placement(&cloned) {
-                for (x, y, block_color) in block_set.content.iter() {
+                for (x, y) in block_set.content.iter() {
                     let x = block_set.x + *x;
                     let y = block_set.y + *y;
-                    self.blocks[y as usize][x as usize] = Some(block_color.clone());
+                    self.blocks[y as usize][x as usize] = Some(block_set.color.clone());
                 }
                 self.block_set = None;
 
@@ -208,7 +176,7 @@ impl GameSystem {
         if let Some(block_set) = self.block_set.as_ref() {
             let mut cloned = block_set.clone();
 
-            for (x, y, _) in cloned.content.iter_mut() {
+            for (x, y) in cloned.content.iter_mut() {
                 (*x, *y) = (*y, -*x);
             }
 
