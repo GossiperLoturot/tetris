@@ -12,6 +12,9 @@ fn main() {
     App::default()
         .add_plugins(DefaultPlugins)
         .add_startup_system(setup)
+        .init_resource::<Instance>()
+        .add_system(input)
+        .add_system(update)
         .run();
 }
 
@@ -38,4 +41,30 @@ fn setup(mut cmds: Commands) {
         },
         ..default()
     });
+}
+
+fn input(input: Res<Input<KeyCode>>, mut instance: ResMut<Instance>) {
+    if input.just_pressed(KeyCode::Up) {
+        instance.rotate_block_set();
+    }
+
+    if input.just_pressed(KeyCode::Down) {
+        instance.down_block_set();
+    }
+
+    if input.just_pressed(KeyCode::Right) {
+        instance.right_block_set();
+    }
+
+    if input.just_pressed(KeyCode::Left) {
+        instance.left_block_set();
+    }
+
+    if input.just_pressed(KeyCode::Return) {
+        instance.place_block_set();
+    }
+}
+
+fn update(mut instance: ResMut<Instance>) {
+    instance.update();
 }

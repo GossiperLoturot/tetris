@@ -30,10 +30,16 @@ const BLOCK_SET_TABLE: &[(&[(i32, i32)], BlockColor)] = &[
     (&[(-1, -1), ( 0, -1), (1, -1), (0,  0)], BlockColor::Purple),
 ];
 
+const BLOCK_WIDTH: u32 = 10;
+const BLOCK_HEIGHT: u32 = 25;
+const BLOCK_SPAWN_X: i32 = 5;
+const BLOCK_SPAWN_Y: i32 = 20;
+const INTERVAL_MSEC: u64 = 400;
+
 #[derive(Resource)]
 pub struct Instance {
-    pub block_width: usize,
-    pub block_height: usize,
+    pub block_width: u32,
+    pub block_height: u32,
     pub block_spawn_x: i32,
     pub block_spawn_y: i32,
     pub block_set: Option<BlockSet>,
@@ -46,14 +52,14 @@ pub struct Instance {
 impl Default for Instance {
     fn default() -> Self {
         Self {
-            block_width: 10,
-            block_height: 25,
-            block_spawn_x: 5,
-            block_spawn_y: 20,
+            block_width: BLOCK_WIDTH,
+            block_height: BLOCK_HEIGHT,
+            block_spawn_x: BLOCK_SPAWN_X,
+            block_spawn_y: BLOCK_SPAWN_Y,
             block_set: None,
-            blocks: vec![vec![None; 10]; 20],
+            blocks: vec![vec![None; BLOCK_WIDTH as usize]; BLOCK_HEIGHT as usize],
             score: 0,
-            update_interval: std::time::Duration::from_millis(400),
+            update_interval: std::time::Duration::from_millis(INTERVAL_MSEC),
             last_update: None,
         }
     }
@@ -94,7 +100,7 @@ impl Instance {
     }
 
     fn spawn_block_set(&mut self) {
-        let (content, color) = &BLOCK_SET_TABLE[0];
+        let (content, color) = &BLOCK_SET_TABLE[0]; // TODO: ランダムな選択
 
         self.block_set = Some(BlockSet {
             x: self.block_spawn_x,
