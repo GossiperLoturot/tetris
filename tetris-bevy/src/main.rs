@@ -1,22 +1,16 @@
-use bevy::{
-    core_pipeline::clear_color::ClearColorConfig, prelude::*, render::camera::ScalingMode,
-    window::WindowResolution,
-};
+mod instance;
 
-const WIDTH: f32 = 720.0;
-const HEIGHT: f32 = 1280.0;
+use bevy::{core_pipeline::clear_color::ClearColorConfig, prelude::*, render::camera::ScalingMode};
+use instance::Instance;
+
+const WIDTH: f32 = 10.0;
+const HEIGHT: f32 = 20.0;
 const BG: Color = Color::GRAY;
 const INACTIVE_BG: Color = Color::BLACK;
 
 fn main() {
     App::default()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                resolution: WindowResolution::new(WIDTH, HEIGHT),
-                ..default()
-            }),
-            ..default()
-        }))
+        .add_plugins(DefaultPlugins)
         .add_startup_system(setup)
         .run();
 }
