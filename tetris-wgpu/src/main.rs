@@ -2,17 +2,13 @@ mod game;
 mod render;
 
 fn main() {
-    pollster::block_on(start());
-}
-
-async fn start() {
     let event_loop = winit::event_loop::EventLoopBuilder::new().build();
     let window = winit::window::WindowBuilder::new()
         .build(&event_loop)
         .unwrap();
 
     let mut game_system = game::GameSystem::Start(game::start::GameSystem::new());
-    let mut render_system = render::RenderSystem::new_async(window).await;
+    let mut render_system = pollster::block_on(render::RenderSystem::new_async(window));
 
     use winit::event::Event;
     use winit::event::StartCause;
@@ -21,21 +17,19 @@ async fn start() {
         Event::NewEvents(StartCause::Poll) => {
             game_system.update();
         }
-        Event::WindowEvent {
-            window_id,
-            ref event,
-        } if render_system.match_id(window_id) => match event {
+        Event::WindowEvent { window_id, event } if render_system.match_id(window_id) => match event
+        {
             WindowEvent::KeyboardInput { input, .. } => {
-                game_system.input(input);
+                game_system.input(&input);
             }
             WindowEvent::CloseRequested => {
                 control_flow.set_exit();
             }
-            WindowEvent::Resized(new_size) => {
-                render_system.resize(*new_size);
+            WindowEvent::Resized(new_inner_size) => {
+                render_system.resize(new_inner_size);
             }
             WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                render_system.resize(**new_inner_size);
+                render_system.resize(*new_inner_size);
             }
             _ => {}
         },

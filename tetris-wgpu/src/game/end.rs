@@ -1,3 +1,5 @@
+use crate::game;
+
 pub struct GameContext<'a> {
     pub score: &'a i32,
 }
@@ -14,12 +16,12 @@ impl GameSystem {
     pub fn input(
         &mut self,
         _input: &winit::event::KeyboardInput,
-        _flow: &mut super::GameSystemFlow,
+        _flow: &mut game::GameSystemFlow,
     ) {
         // nothing
     }
 
-    pub fn update(&mut self, _flow: &mut super::GameSystemFlow) {
+    pub fn update(&mut self, _flow: &mut game::GameSystemFlow) {
         // nothing
     }
 

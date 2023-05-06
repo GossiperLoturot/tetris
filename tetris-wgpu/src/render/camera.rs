@@ -1,4 +1,4 @@
-use super::constants;
+use crate::render::constants;
 use wgpu::util::DeviceExt;
 
 #[rustfmt::skip]
@@ -27,17 +27,6 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn get_contain_clipping(
-        target_clipping: (f32, f32),
-        window_size: winit::dpi::PhysicalSize<u32>,
-    ) -> (f32, f32) {
-        let aspect = window_size.width as f32 / window_size.height as f32;
-        (
-            target_clipping.0.max(target_clipping.1 * aspect),
-            target_clipping.1.max(target_clipping.0 / aspect),
-        )
-    }
-
     pub fn build(&self) -> RawCamera {
         let view = cgmath::Matrix4::look_to_rh(self.eye, self.target, self.up);
         let proj = cgmath::ortho(
@@ -56,22 +45,27 @@ impl Camera {
     }
 }
 
-pub struct Renderer {
+pub struct Resource {
     camera: Camera,
     buffer: wgpu::Buffer,
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
 }
 
-impl Renderer {
-    pub fn new(device: &wgpu::Device, size: winit::dpi::PhysicalSize<u32>) -> Self {
-        let clipping = Camera::get_contain_clipping((constants::WIDTH, constants::HEIGHT), size);
+impl Resource {
+    pub fn new(device: &wgpu::Device, width: u32, height: u32) -> Self {
+        let (clipping_width, clipping_height) = Self::get_contain_clipping(
+            constants::WIDTH,
+            constants::HEIGHT,
+            width as _,
+            height as _,
+        );
         let camera = Camera {
             eye: cgmath::point3(0.0, 0.0, 10.0),
             target: -cgmath::Vector3::unit_z(),
             up: cgmath::Vector3::unit_y(),
-            w_range: clipping.0,
-            h_range: clipping.1,
+            w_range: clipping_width,
+            h_range: clipping_height,
             z_near: 0.001,
             z_far: 1000.0,
         };
@@ -113,15 +107,32 @@ impl Renderer {
         }
     }
 
-    pub fn resize(&mut self, queue: &wgpu::Queue, new_size: winit::dpi::PhysicalSize<u32>) {
-        let clipping =
-            Camera::get_contain_clipping((constants::WIDTH, constants::HEIGHT), new_size);
-        self.camera.w_range = clipping.0;
-        self.camera.h_range = clipping.1;
+    pub fn resize(&mut self, queue: &wgpu::Queue, width: u32, height: u32) {
+        let (clipping_width, clipping_height) = Self::get_contain_clipping(
+            constants::WIDTH,
+            constants::HEIGHT,
+            width as _,
+            height as _,
+        );
+        self.camera.w_range = clipping_width;
+        self.camera.h_range = clipping_height;
         queue.write_buffer(
             &self.buffer,
             0,
             bytemuck::cast_slice(&[self.camera.build()]),
         );
+    }
+
+    fn get_contain_clipping(
+        target_width: f32,
+        target_height: f32,
+        width: f32,
+        height: f32,
+    ) -> (f32, f32) {
+        let aspect = width / height;
+        (
+            target_width.max(target_height * aspect),
+            target_height.max(target_width / aspect),
+        )
     }
 }

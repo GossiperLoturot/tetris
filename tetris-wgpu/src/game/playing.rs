@@ -1,3 +1,4 @@
+use crate::game;
 use std::collections::HashSet;
 
 #[derive(Clone)]
@@ -70,11 +71,7 @@ impl GameSystem {
         }
     }
 
-    pub fn input(
-        &mut self,
-        input: &winit::event::KeyboardInput,
-        _flow: &mut super::GameSystemFlow,
-    ) {
+    pub fn input(&mut self, input: &winit::event::KeyboardInput, _flow: &mut game::GameSystemFlow) {
         if let Some(virtual_keycode) = input.virtual_keycode {
             use winit::event::ElementState;
             use winit::event::VirtualKeyCode;
@@ -105,7 +102,7 @@ impl GameSystem {
         }
     }
 
-    pub fn update(&mut self, flow: &mut super::GameSystemFlow) {
+    pub fn update(&mut self, flow: &mut game::GameSystemFlow) {
         if self
             .last_update
             .map(|last_update| self.update_interval < last_update.elapsed())
@@ -118,8 +115,8 @@ impl GameSystem {
                 self.spawn_block_set();
 
                 if !self.is_valid_placement(self.block_set.as_ref().unwrap()) {
-                    *flow = super::GameSystemFlow::To(super::GameSystem::End(
-                        super::end::GameSystem::new(self.score),
+                    *flow = game::GameSystemFlow::To(game::GameSystem::End(
+                        game::end::GameSystem::new(self.score),
                     ))
                 }
             }

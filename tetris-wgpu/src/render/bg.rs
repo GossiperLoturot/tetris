@@ -1,4 +1,4 @@
-use super::constants;
+use crate::render::constants;
 use wgpu::util::DeviceExt;
 
 #[repr(C)]
@@ -21,42 +21,42 @@ impl Vertex {
     }
 }
 
-#[rustfmt::skip]
-const VERTICES: &[Vertex] = &[
-    Vertex { position: [-constants::WIDTH * 0.5, -constants::HEIGHT * 0.5, 0.0], color: constants::color::BG_DEFAULT },
-    Vertex { position: [ constants::WIDTH * 0.5, -constants::HEIGHT * 0.5, 0.0], color: constants::color::BG_DEFAULT },
-    Vertex { position: [ constants::WIDTH * 0.5,  constants::HEIGHT * 0.5, 0.0], color: constants::color::BG_DEFAULT },
-    Vertex { position: [-constants::WIDTH * 0.5,  constants::HEIGHT * 0.5, 0.0], color: constants::color::BG_DEFAULT },
-];
-
-const INDICES: &[u16] = &[0, 1, 2, 0, 2, 3];
-
-pub struct Renderer {
+pub struct Pipeline {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
-    render_pipeline: wgpu::RenderPipeline,
+    pipeline: wgpu::RenderPipeline,
 }
 
-impl Renderer {
+impl Pipeline {
+    #[rustfmt::skip]
+    const VERTICES: &[Vertex] = &[
+        Vertex { position: [-constants::WIDTH * 0.5, -constants::HEIGHT * 0.5, 0.0], color: constants::color::BG_DEFAULT },
+        Vertex { position: [ constants::WIDTH * 0.5, -constants::HEIGHT * 0.5, 0.0], color: constants::color::BG_DEFAULT },
+        Vertex { position: [ constants::WIDTH * 0.5,  constants::HEIGHT * 0.5, 0.0], color: constants::color::BG_DEFAULT },
+        Vertex { position: [-constants::WIDTH * 0.5,  constants::HEIGHT * 0.5, 0.0], color: constants::color::BG_DEFAULT },
+    ];
+
+    const INDICES: &[u16] = &[0, 1, 2, 0, 2, 3];
+
     pub fn new(
         device: &wgpu::Device,
-        config: &wgpu::SurfaceConfiguration,
+        target_format: wgpu::TextureFormat,
         bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Self {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(VERTICES),
+            contents: bytemuck::cast_slice(Self::VERTICES),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(INDICES),
+            contents: bytemuck::cast_slice(Self::INDICES),
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        let num_indices = INDICES.len() as u32;
+        let num_indices = Self::INDICES.len() as u32;
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
@@ -70,7 +70,7 @@ impl Renderer {
                 push_constant_ranges: &[],
             });
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
@@ -82,7 +82,7 @@ impl Renderer {
                 module: &shader,
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
+                    format: target_format,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -109,19 +109,47 @@ impl Renderer {
             vertex_buffer,
             index_buffer,
             num_indices,
-            render_pipeline,
+            pipeline,
         }
     }
 
-    pub fn render<'a>(
-        &'a self,
-        render_pass: &mut wgpu::RenderPass<'a>,
-        bind_group: &'a wgpu::BindGroup,
+    pub fn render(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        target: &wgpu::TextureView,
+        bind_group: &wgpu::BindGroup,
     ) {
-        render_pass.set_pipeline(&self.render_pipeline);
-        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        render_pass.set_bind_group(0, bind_group, &[]);
-        render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+
+        let color = wgpu::Color {
+            r: constants::color::BG_SUBTLE[0] as _,
+            g: constants::color::BG_SUBTLE[1] as _,
+            b: constants::color::BG_SUBTLE[2] as _,
+            a: 1.0,
+        };
+
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: target,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(color),
+                    store: true,
+                },
+            })],
+            depth_stencil_attachment: None,
+            label: None,
+        });
+
+        pass.set_pipeline(&self.pipeline);
+        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        pass.set_bind_group(0, bind_group, &[]);
+        pass.draw_indexed(0..self.num_indices, 0, 0..1);
+
+        drop(pass);
+
+        queue.submit([encoder.finish()]);
     }
 }

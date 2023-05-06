@@ -38,34 +38,34 @@ impl Instance {
     }
 }
 
-#[rustfmt::skip]
-const VERTICES: &[Vertex] = &[
-    Vertex { position: [0.0, 0.0, 0.0] },
-    Vertex { position: [1.0, 0.0, 0.0] },
-    Vertex { position: [1.0, 1.0, 0.0] },
-    Vertex { position: [0.0, 1.0, 0.0] },
-];
-
-const INDICES: &[u16] = &[0, 1, 2, 0, 2, 3];
-
-pub struct Renderer {
+pub struct Pipeline {
     vertex_buffer: wgpu::Buffer,
     instance_buffer: wgpu::Buffer,
     num_instances: u32,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
-    render_pipeline: wgpu::RenderPipeline,
+    pipeline: wgpu::RenderPipeline,
 }
 
-impl Renderer {
+impl Pipeline {
+    #[rustfmt::skip]
+    const VERTICES: &[Vertex] = &[
+        Vertex { position: [0.0, 0.0, 0.0] },
+        Vertex { position: [1.0, 0.0, 0.0] },
+        Vertex { position: [1.0, 1.0, 0.0] },
+        Vertex { position: [0.0, 1.0, 0.0] },
+    ];
+
+    const INDICES: &[u16] = &[0, 1, 2, 0, 2, 3];
+
     pub fn new(
         device: &wgpu::Device,
-        config: &wgpu::SurfaceConfiguration,
+        target_format: wgpu::TextureFormat,
         bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Self {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(VERTICES),
+            contents: bytemuck::cast_slice(Self::VERTICES),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
@@ -80,11 +80,11 @@ impl Renderer {
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(INDICES),
+            contents: bytemuck::cast_slice(Self::INDICES),
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        let num_indices = INDICES.len() as u32;
+        let num_indices = Self::INDICES.len() as u32;
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
@@ -100,7 +100,7 @@ impl Renderer {
                 push_constant_ranges: &[],
             });
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
@@ -112,7 +112,7 @@ impl Renderer {
                 module: &shader,
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
+                    format: target_format,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -141,39 +141,47 @@ impl Renderer {
             num_instances,
             index_buffer,
             num_indices,
-            render_pipeline,
+            pipeline,
         }
     }
 
-    pub fn render<'a>(
-        &'a self,
-        render_pass: &mut wgpu::RenderPass<'a>,
-        bind_group: &'a wgpu::BindGroup,
-    ) {
-        render_pass.set_pipeline(&self.render_pipeline);
-        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        render_pass.set_bind_group(0, bind_group, &[]);
-        render_pass.draw_indexed(0..self.num_indices, 0, 0..self.num_instances);
-    }
-
-    pub fn set_instances(
-        &mut self,
+    pub fn render(
+        &self,
         device: &wgpu::Device,
-        encoder: &mut wgpu::CommandEncoder,
-        staging_belg: &mut wgpu::util::StagingBelt,
-        instances: &[Instance],
+        queue: &wgpu::Queue,
+        target: &wgpu::TextureView,
+        bind_group: &wgpu::BindGroup,
     ) {
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: target,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: true,
+                },
+            })],
+            depth_stencil_attachment: None,
+            label: None,
+        });
+
+        pass.set_pipeline(&self.pipeline);
+        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        pass.set_bind_group(0, bind_group, &[]);
+        pass.draw_indexed(0..self.num_indices, 0, 0..self.num_instances);
+
+        drop(pass);
+
+        queue.submit([encoder.finish()]);
+    }
+
+    pub fn set_instances(&mut self, queue: &wgpu::Queue, instances: &[Instance]) {
         self.num_instances = instances.len() as _;
-
         let bytes = bytemuck::cast_slice(instances);
-
-        if let Some(size) = std::num::NonZeroU64::new(bytes.len() as _) {
-            let mut view =
-                staging_belg.write_buffer(encoder, &self.instance_buffer, 0, size, device);
-
-            view.copy_from_slice(bytes);
-        }
+        queue.write_buffer(&self.instance_buffer, 0, bytes);
     }
 }
