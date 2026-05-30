@@ -20,7 +20,7 @@ impl Pipeline {
         .unwrap();
 
         let glyph_blush =
-            wgpu_glyph::GlyphBrushBuilder::using_font(font).build(&device, target_format);
+            wgpu_glyph::GlyphBrushBuilder::using_font(font).build(device, target_format);
 
         Self {
             staging_belt,
@@ -39,7 +39,7 @@ impl Pipeline {
     ) {
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
 
-        for section in sections.into_iter() {
+        for section in sections.iter() {
             self.glyph_blush.queue(section);
         }
 

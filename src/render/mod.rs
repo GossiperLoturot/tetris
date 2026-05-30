@@ -146,6 +146,16 @@ impl RenderSystem {
 
                 let mut instances = vec![];
 
+                for col in 0..constants::WIDTH as usize {
+                    let position = [
+                        col as f32 - constants::WIDTH * 0.5,
+                        constants::MAX_STACK_HEIGHT - constants::HEIGHT * 0.5,
+                        0.0,
+                    ];
+                    let color = constants::color::BG_MAX_STACK;
+                    instances.push(block::Instance { position, color });
+                }
+
                 for (row, items) in cx.blocks.iter().enumerate() {
                     for (col, item) in items.iter().enumerate() {
                         if let Some(block_color) = item.as_ref() {
@@ -167,7 +177,7 @@ impl RenderSystem {
                             block_set.y as f32 + *row as f32 - constants::HEIGHT * 0.5,
                             0.0,
                         ];
-                        let color = color_to_data(&block_set.color);
+                        let color = color_to_data(&block_set.template.color);
                         instances.push(block::Instance { position, color })
                     }
                 }
@@ -202,10 +212,10 @@ impl RenderSystem {
                         wgpu_glyph::Section::default()
                             .add_text(
                                 wgpu_glyph::Text::new(
-                                    "ARROWS: MOVE    Z/X: ROTATE\nSPACE: HARD DROP    P: PAUSE"
+                                    "ARROWS: MOVE    Z/X: ROTATE\nSPACE: HARD DROP    P: PAUSE",
                                 )
-                                    .with_scale(constants::TEXT_SCALE * 0.75)
-                                    .with_color(constants::color::TEXT_PLAYING),
+                                .with_scale(constants::TEXT_SCALE * 0.75)
+                                .with_color(constants::color::TEXT_PLAYING),
                             )
                             .with_screen_position((
                                 self.config.width as f32 - constants::TEXT_SCALE,
