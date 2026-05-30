@@ -253,22 +253,22 @@ impl GameSystem {
         }
     }
 
-fn hard_drop_block_set(&mut self) {
-    if let Some(block_set) = self.block_set.as_ref() {
-        let mut dropped = block_set.clone();
-        loop {
-            let mut next = dropped.clone();
-            next.y -= 1;
-            if self.is_valid_placement(&next) {
-                dropped = next;
-            } else {
-                break;
+    fn hard_drop_block_set(&mut self) {
+        if let Some(block_set) = self.block_set.as_ref() {
+            let mut dropped = block_set.clone();
+            loop {
+                let mut next = dropped.clone();
+                next.y -= 1;
+                if self.is_valid_placement(&next) {
+                    dropped = next;
+                } else {
+                    break;
+                }
             }
+            self.block_set = Some(dropped);
+            self.place_block_set();
         }
-        self.block_set = Some(dropped);
-        self.place_block_set();
     }
-}
 
     fn right_block_set(&mut self) {
         if let Some(block_set) = self.block_set.as_ref() {
