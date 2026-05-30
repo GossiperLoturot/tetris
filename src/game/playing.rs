@@ -35,6 +35,7 @@ pub struct GameContext<'a> {
     pub blocks: &'a Vec<Vec<Option<BlockColor>>>,
     pub block_set: &'a Option<BlockSet>,
     pub score: &'a i32,
+    pub paused: &'a bool,
 }
 
 pub struct GameSystem {
@@ -49,6 +50,7 @@ pub struct GameSystem {
     last_update: Option<std::time::Instant>,
     update_interval: std::time::Duration,
     score: i32,
+    paused: bool,
 }
 
 impl GameSystem {
@@ -68,27 +70,53 @@ impl GameSystem {
             last_update: None,
             update_interval: std::time::Duration::from_millis(400),
             score: 0,
+            paused: false,
         }
     }
 
-    pub fn input(&mut self, input: &winit::event::KeyboardInput, _flow: &mut game::GameSystemFlow) {
+    pub fn input(&mut self, input: &winit::event::KeyboardInput, flow: &mut game::GameSystemFlow) {
         if let Some(virtual_keycode) = input.virtual_keycode {
             use winit::event::ElementState;
             use winit::event::VirtualKeyCode;
             match input.state {
                 ElementState::Pressed if !self.pressed.contains(&virtual_keycode) => {
                     match virtual_keycode {
+                        VirtualKeyCode::P => {
+                            self.paused = !self.paused;
+                            if !self.paused {
+                                self.last_update = Some(std::time::Instant::now());
+                            }
+                        }
+                        VirtualKeyCode::Space if !self.paused => {
+                            self.hard_drop_block_set();
+                            if self.block_set.is_none() {
+                                self.spawn_block_set();
+                                if !self.is_valid_placement(self.block_set.as_ref().unwrap()) {
+                                    *flow = game::GameSystemFlow::To(game::GameSystem::End(
+                                        game::end::GameSystem::new(self.score),
+                                    ));
+                                }
+                            }
+                        }
                         VirtualKeyCode::Up => {
-                            self.rotate_block_set();
+                            if !self.paused {
+                                self.rotate_block_set();
+                            }
                         }
                         VirtualKeyCode::Down => {
-                            self.down_block_set();
+                            if !self.paused {
+                                self.down_block_set();
+                            }
                         }
                         VirtualKeyCode::Right => {
-                            self.right_block_set();
+                            if !self.paused {
+                                self.right_block_set();
+                            }
                         }
                         VirtualKeyCode::Left => {
-                            self.left_block_set();
+                            if !self.paused {
+                                self.left_block_set();
+                            }
                         }
                         _ => {}
                     }
@@ -103,6 +131,10 @@ impl GameSystem {
     }
 
     pub fn update(&mut self, flow: &mut game::GameSystemFlow) {
+        if self.paused {
+            return;
+        }
+
         if self
             .last_update
             .map(|last_update| self.update_interval < last_update.elapsed())
@@ -193,6 +225,23 @@ impl GameSystem {
                 self.block_set = Some(cloned);
             }
         }
+
+        fn hard_drop_block_set(&mut self) {
+            if let Some(block_set) = self.block_set.as_ref() {
+                let mut dropped = block_set.clone();
+                loop {
+                    let mut next = dropped.clone();
+                    next.y -= 1;
+                    if self.is_valid_placement(&next) {
+                        dropped = next;
+                    } else {
+                        break;
+                    }
+                }
+                self.block_set = Some(dropped);
+                self.place_block_set();
+            }
+        }
     }
 
     fn right_block_set(&mut self) {
@@ -246,6 +295,7 @@ impl GameSystem {
             blocks: &self.blocks,
             block_set: &self.block_set,
             score: &self.score,
+            paused: &self.paused,
         }
     }
 }
