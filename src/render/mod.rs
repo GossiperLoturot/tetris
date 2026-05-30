@@ -113,9 +113,11 @@ impl RenderSystem {
                             ),
                         wgpu_glyph::Section::default()
                             .add_text(
-                                wgpu_glyph::Text::new("ARROWS: MOVE/ROTATE   SPACE: HARD DROP   P: PAUSE")
-                                    .with_scale(constants::TEXT_SCALE * 0.75)
-                                    .with_color(constants::color::TEXT),
+                                wgpu_glyph::Text::new(
+                                    "ARROWS: MOVE/ROTATE   SPACE: HARD DROP   P: PAUSE",
+                                )
+                                .with_scale(constants::TEXT_SCALE * 0.75)
+                                .with_color(constants::color::TEXT),
                             )
                             .with_screen_position((
                                 self.config.width as f32 * 0.5,

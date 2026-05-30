@@ -18,11 +18,7 @@ impl GameSystem {
         }
     }
 
-    pub fn input(
-        &mut self,
-        input: &winit::event::KeyboardInput,
-        flow: &mut game::GameSystemFlow,
-    ) {
+    pub fn input(&mut self, input: &winit::event::KeyboardInput, flow: &mut game::GameSystemFlow) {
         if let Some(virtual_keycode) = input.virtual_keycode {
             use winit::event::ElementState;
             use winit::event::VirtualKeyCode;
@@ -31,7 +27,7 @@ impl GameSystem {
                     if virtual_keycode == VirtualKeyCode::Return {
                         *flow = game::GameSystemFlow::To(game::GameSystem::Playing(
                             game::playing::GameSystem::new(),
-                        ))
+                        ));
                     }
                     self.pressed.insert(virtual_keycode);
                 }

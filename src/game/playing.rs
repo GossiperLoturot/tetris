@@ -90,12 +90,7 @@ impl GameSystem {
                         VirtualKeyCode::Space if !self.paused => {
                             self.hard_drop_block_set();
                             if self.block_set.is_none() {
-                                self.spawn_block_set();
-                                if !self.is_valid_placement(self.block_set.as_ref().unwrap()) {
-                                    *flow = game::GameSystemFlow::To(game::GameSystem::End(
-                                        game::end::GameSystem::new(self.score),
-                                    ));
-                                }
+                                self.spawn_or_end(flow);
                             }
                         }
                         VirtualKeyCode::Up => {
@@ -144,13 +139,7 @@ impl GameSystem {
             self.down_block_set();
 
             if self.block_set.is_none() {
-                self.spawn_block_set();
-
-                if !self.is_valid_placement(self.block_set.as_ref().unwrap()) {
-                    *flow = game::GameSystemFlow::To(game::GameSystem::End(
-                        game::end::GameSystem::new(self.score),
-                    ))
-                }
+                self.spawn_or_end(flow);
             }
 
             self.last_update = Some(std::time::Instant::now());
@@ -225,22 +214,34 @@ impl GameSystem {
                 self.block_set = Some(cloned);
             }
         }
+    }
 
-        fn hard_drop_block_set(&mut self) {
-            if let Some(block_set) = self.block_set.as_ref() {
-                let mut dropped = block_set.clone();
-                loop {
-                    let mut next = dropped.clone();
-                    next.y -= 1;
-                    if self.is_valid_placement(&next) {
-                        dropped = next;
-                    } else {
-                        break;
-                    }
-                }
-                self.block_set = Some(dropped);
-                self.place_block_set();
+    fn hard_drop_block_set(&mut self) {
+        if let Some(block_set) = self.block_set.as_ref() {
+            let mut dropped = block_set.clone();
+            while dropped.content.iter().all(|(x, y)| {
+                let x = dropped.x + x;
+                let y = dropped.y + y - 1;
+                0 <= x
+                    && x < self.block_width as i32
+                    && 0 <= y
+                    && y < self.block_height as i32
+                    && self.blocks[y as usize][x as usize].is_none()
+            }) {
+                dropped.y -= 1;
             }
+            self.block_set = Some(dropped);
+            self.place_block_set();
+        }
+    }
+
+    fn spawn_or_end(&mut self, flow: &mut game::GameSystemFlow) {
+        self.spawn_block_set();
+
+        if !self.is_valid_placement(self.block_set.as_ref().unwrap()) {
+            *flow = game::GameSystemFlow::To(game::GameSystem::End(game::end::GameSystem::new(
+                self.score,
+            )));
         }
     }
 
