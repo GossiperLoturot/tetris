@@ -154,7 +154,7 @@ impl GameSystem {
         })
     }
 
-    fn check_and_end(&mut self, flow: &mut game::GameSystemFlow) {
+fn check_and_end(&self, flow: &mut game::GameSystemFlow) {
         if !self.is_valid_placement(self.block_set.as_ref().unwrap()) {
             *flow = game::GameSystemFlow::To(game::GameSystem::End(game::end::GameSystem::new(
                 self.score,
