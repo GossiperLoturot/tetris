@@ -1,6 +1,12 @@
 use crate::game;
 use std::collections::HashSet;
 
+pub const MAX_BLOCK_WIDTH: i32 = 10;
+pub const MAX_BLOCK_HEIGHT: i32 = 25;
+pub const SPAWN_BLOCK_X: i32 = 3;
+pub const SPAWN_BLOCK_Y: i32 = 20;
+pub const MAX_STACK_HEIGHT: i32 = 20;
+
 #[derive(Clone)]
 pub enum BlockColor {
     Cyan,
@@ -12,27 +18,31 @@ pub enum BlockColor {
     Purple,
 }
 
+#[derive(Clone)]
+pub struct BlockSetTemplate {
+    pub content: &'static [(i32, i32)],
+    pub rotation_origin: (f32, f32),
+    pub color: BlockColor,
+}
+
 #[rustfmt::skip]
-const BLOCK_SET_TABLE: &[(&[(i32, i32)], (f32, f32), BlockColor)] = &[
-    (&[(-1,  0), ( 0,  0), (1,  0), (2,  0)], (0.5, 0.5), BlockColor::Cyan),
-    (&[( 0,  0), ( 1,  0), (1,  1), (0,  1)], (0.5, 0.5), BlockColor::Yellow),
-    (&[(-1, -1), ( 0, -1), (0,  0), (1,  0)], (0.0, 0.0), BlockColor::Green),
-    (&[(-1,  0), ( 0,  0), (0, -1), (1, -1)], (0.0, 0.0), BlockColor::Red),
-    (&[(-1,  0), (-1, -1), (0, -1), (1, -1)], (0.0, 0.0), BlockColor::Blue),
-    (&[(-1, -1), ( 0, -1), (1, -1), (1,  0)], (0.0, 0.0), BlockColor::Orange),
-    (&[(-1, -1), ( 0, -1), (1, -1), (0,  0)], (0.0, 0.0), BlockColor::Purple),
+pub const BLOCK_SET_TEMPLATES: &[BlockSetTemplate] = &[
+    BlockSetTemplate { content: &[(0, 0), (1, 0), (2, 0), (3, 0)], rotation_origin: (1.5, 0.5), color: BlockColor::Cyan },    // I tetromino
+    BlockSetTemplate { content: &[(1, 0), (2, 0), (2, 1), (1, 1)], rotation_origin: (1.5, 0.5), color: BlockColor::Yellow },  // O tetromino
+    BlockSetTemplate { content: &[(0, 0), (1, 0), (1, 1), (2, 1)], rotation_origin: (1.0, 0.0), color: BlockColor::Green },   // S tetromino
+    BlockSetTemplate { content: &[(0, 1), (1, 1), (1, 0), (2, 0)], rotation_origin: (1.0, 0.0), color: BlockColor::Red },     // Z tetromino
+    BlockSetTemplate { content: &[(0, 1), (0, 0), (1, 0), (2, 0)], rotation_origin: (1.0, 0.0), color: BlockColor::Blue },    // J tetromino
+    BlockSetTemplate { content: &[(0, 0), (1, 0), (2, 0), (2, 1)], rotation_origin: (1.0, 0.0), color: BlockColor::Orange },  // L tetromino
+    BlockSetTemplate { content: &[(0, 0), (1, 0), (2, 0), (1, 1)], rotation_origin: (1.0, 0.0), color: BlockColor::Purple },  // T tetromino
 ];
 
 #[derive(Clone)]
 pub struct BlockSet {
     pub x: i32,
     pub y: i32,
-    pub rotation_origin: (f32, f32),
-    pub color: BlockColor,
     pub content: Vec<(i32, i32)>,
+    pub template: BlockSetTemplate,
 }
-
-pub const MAX_STACK_HEIGHT: i32 = 20;
 
 pub struct GameContext<'a> {
     pub blocks: &'a Vec<Vec<Option<BlockColor>>>,
@@ -42,10 +52,6 @@ pub struct GameContext<'a> {
 }
 
 pub struct GameSystem {
-    block_width: u32,
-    block_height: u32,
-    spawn_block_x: i32,
-    spawn_block_y: i32,
     rng: rand::rngs::ThreadRng,
     blocks: Vec<Vec<Option<BlockColor>>>,
     block_set: Option<BlockSet>,
@@ -58,16 +64,9 @@ pub struct GameSystem {
 
 impl GameSystem {
     pub fn new() -> Self {
-        let block_width = 10;
-        let block_height = 25;
-
         Self {
-            block_width,
-            block_height,
-            spawn_block_x: 4,
-            spawn_block_y: 22,
             rng: rand::thread_rng(),
-            blocks: vec![vec![None; block_width as usize]; block_height as usize],
+            blocks: vec![vec![None; MAX_BLOCK_WIDTH as usize]; MAX_BLOCK_HEIGHT as usize],
             block_set: None,
             pressed: HashSet::new(),
             last_update: None,
@@ -152,77 +151,10 @@ impl GameSystem {
         block_set.content.iter().all(|(x, y)| {
             let x = block_set.x + x;
             let y = block_set.y + y;
-            0 <= x
-                && x < self.block_width as i32
-                && 0 <= y
-                && y < self.block_height as i32
+            (0..MAX_BLOCK_WIDTH).contains(&x)
+                && (0..MAX_BLOCK_HEIGHT).contains(&y)
                 && self.blocks[y as usize][x as usize].is_none()
         })
-    }
-
-    fn check_and_end(&self, flow: &mut game::GameSystemFlow) {
-        if self.is_game_over() {
-            *flow = game::GameSystemFlow::To(game::GameSystem::End(game::end::GameSystem::new(
-                self.score,
-            )));
-        }
-    }
-
-    fn spawn_block_set(&mut self) {
-        use rand::seq::SliceRandom;
-
-        let (content, rotation_origin, color) = BLOCK_SET_TABLE.choose(&mut self.rng).unwrap();
-
-        self.block_set = Some(BlockSet {
-            x: self.spawn_block_x,
-            y: self.spawn_block_y,
-            rotation_origin: *rotation_origin,
-            color: color.clone(),
-            content: content.to_vec(),
-        });
-    }
-
-    fn place_block_set(&mut self) {
-        if let Some(block_set) = self.block_set.as_ref() {
-            let mut cloned = block_set.clone();
-
-            cloned.y -= 1;
-
-            if self.is_valid_placement(block_set) && !self.is_valid_placement(&cloned) {
-                for (x, y) in block_set.content.iter() {
-                    let x = block_set.x + *x;
-                    let y = block_set.y + *y;
-                    self.blocks[y as usize][x as usize] = Some(block_set.color.clone());
-                }
-                self.block_set = None;
-
-                self.erase_block_line();
-            }
-        }
-    }
-
-    fn rotate_block_set(&mut self, clockwise: bool) {
-        if let Some(block_set) = self.block_set.as_ref() {
-            let mut cloned = block_set.clone();
-
-            for (x, y) in cloned.content.iter_mut() {
-                let (origin_x, origin_y) = cloned.rotation_origin;
-                let shift_x = *x as f32 - origin_x;
-                let shift_y = *y as f32 - origin_y;
-                let (rotated_x, rotated_y) = if clockwise {
-                    (shift_y, -shift_x)
-                } else {
-                    (-shift_y, shift_x)
-                };
-
-                *x = (origin_x + rotated_x).round() as i32;
-                *y = (origin_y + rotated_y).round() as i32;
-            }
-
-            if self.is_valid_placement(&cloned) {
-                self.block_set = Some(cloned);
-            }
-        }
     }
 
     fn is_game_over(&self) -> bool {
@@ -241,14 +173,77 @@ impl GameSystem {
         placed_blocks_over_height || spawned_block_collided
     }
 
+    fn check_and_end(&self, flow: &mut game::GameSystemFlow) {
+        if self.is_game_over() {
+            let state = game::GameSystem::End(game::end::GameSystem::new(self.score));
+            *flow = game::GameSystemFlow::To(state);
+        }
+    }
+
+    fn spawn_block_set(&mut self) {
+        use rand::seq::SliceRandom;
+
+        let block_set_template = BLOCK_SET_TEMPLATES.choose(&mut self.rng).unwrap();
+
+        self.block_set = Some(BlockSet {
+            x: SPAWN_BLOCK_X,
+            y: SPAWN_BLOCK_Y,
+            content: block_set_template.content.to_vec(),
+            template: block_set_template.clone(),
+        });
+    }
+
+    fn place_block_set(&mut self) {
+        if let Some(block_set) = self.block_set.as_ref() {
+            let mut next = block_set.clone();
+
+            next.y -= 1;
+
+            if self.is_valid_placement(block_set) && !self.is_valid_placement(&next) {
+                for (x, y) in block_set.content.iter() {
+                    let x = block_set.x + *x;
+                    let y = block_set.y + *y;
+                    self.blocks[y as usize][x as usize] = Some(block_set.template.color.clone());
+                }
+                self.block_set = None;
+
+                self.erase_block_line();
+            }
+        }
+    }
+
+    fn rotate_block_set(&mut self, clockwise: bool) {
+        if let Some(block_set) = self.block_set.as_ref() {
+            let mut next = block_set.clone();
+
+            for (x, y) in next.content.iter_mut() {
+                let (origin_x, origin_y) = block_set.template.rotation_origin;
+                let shift_x = *x as f32 - origin_x;
+                let shift_y = *y as f32 - origin_y;
+                let (rotated_x, rotated_y) = if clockwise {
+                    (shift_y, -shift_x)
+                } else {
+                    (-shift_y, shift_x)
+                };
+
+                *x = (origin_x + rotated_x).round() as i32;
+                *y = (origin_y + rotated_y).round() as i32;
+            }
+
+            if self.is_valid_placement(&next) {
+                self.block_set = Some(next);
+            }
+        }
+    }
+
     fn down_block_set(&mut self) {
         if let Some(block_set) = self.block_set.as_ref() {
-            let mut cloned = block_set.clone();
+            let mut next = block_set.clone();
 
-            cloned.y -= 1;
+            next.y -= 1;
 
-            if self.is_valid_placement(&cloned) {
-                self.block_set = Some(cloned);
+            if self.is_valid_placement(&next) {
+                self.block_set = Some(next);
             }
         }
     }
@@ -258,7 +253,9 @@ impl GameSystem {
             let mut dropped = block_set.clone();
             loop {
                 let mut next = dropped.clone();
+
                 next.y -= 1;
+
                 if self.is_valid_placement(&next) {
                     dropped = next;
                 } else {
@@ -272,24 +269,24 @@ impl GameSystem {
 
     fn right_block_set(&mut self) {
         if let Some(block_set) = self.block_set.as_ref() {
-            let mut cloned = block_set.clone();
+            let mut next = block_set.clone();
 
-            cloned.x += 1;
+            next.x += 1;
 
-            if self.is_valid_placement(&cloned) {
-                self.block_set = Some(cloned);
+            if self.is_valid_placement(&next) {
+                self.block_set = Some(next);
             }
         }
     }
 
     fn left_block_set(&mut self) {
         if let Some(block_set) = self.block_set.as_ref() {
-            let mut cloned = block_set.clone();
+            let mut next = block_set.clone();
 
-            cloned.x -= 1;
+            next.x -= 1;
 
-            if self.is_valid_placement(&cloned) {
-                self.block_set = Some(cloned);
+            if self.is_valid_placement(&next) {
+                self.block_set = Some(next);
             }
         }
     }
@@ -307,7 +304,7 @@ impl GameSystem {
             }
         }
 
-        for row in 0..self.block_height as usize {
+        for row in 0..MAX_BLOCK_HEIGHT as usize {
             let down = row_nums
                 .iter()
                 .filter(|erased_row| **erased_row < row)

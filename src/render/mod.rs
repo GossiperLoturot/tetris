@@ -149,10 +149,10 @@ impl RenderSystem {
                 for col in 0..constants::WIDTH as usize {
                     let position = [
                         col as f32 - constants::WIDTH * 0.5,
-                        game::playing::MAX_STACK_HEIGHT as f32 - 1.0 - constants::HEIGHT * 0.5,
+                        constants::MAX_STACK_HEIGHT - constants::HEIGHT * 0.5,
                         0.0,
                     ];
-                    let color = constants::color::MAX_HEIGHT;
+                    let color = constants::color::BG_MAX_STACK;
                     instances.push(block::Instance { position, color });
                 }
 
@@ -177,7 +177,7 @@ impl RenderSystem {
                             block_set.y as f32 + *row as f32 - constants::HEIGHT * 0.5,
                             0.0,
                         ];
-                        let color = color_to_data(&block_set.color);
+                        let color = color_to_data(&block_set.template.color);
                         instances.push(block::Instance { position, color })
                     }
                 }
