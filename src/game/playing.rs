@@ -83,35 +83,30 @@ impl GameSystem {
                     match virtual_keycode {
                         VirtualKeyCode::P => {
                             self.paused = !self.paused;
+
                             if !self.paused {
                                 self.last_update = Some(std::time::Instant::now());
                             }
                         }
                         VirtualKeyCode::Space if !self.paused => {
                             self.hard_drop_block_set();
+
                             if self.block_set.is_none() {
-                                self.spawn_or_end(flow);
+                                self.spawn_block_set();
                             }
+                            self.check_and_end(flow);
                         }
-                        VirtualKeyCode::Up => {
-                            if !self.paused {
-                                self.rotate_block_set();
-                            }
+                        VirtualKeyCode::Up | VirtualKeyCode::Z | VirtualKeyCode::X if !self.paused => {
+                            self.rotate_block_set();
                         }
-                        VirtualKeyCode::Down => {
-                            if !self.paused {
-                                self.down_block_set();
-                            }
+                        VirtualKeyCode::Down if !self.paused => {
+                            self.down_block_set();
                         }
-                        VirtualKeyCode::Right => {
-                            if !self.paused {
-                                self.right_block_set();
-                            }
+                        VirtualKeyCode::Right if !self.paused => {
+                            self.right_block_set();
                         }
-                        VirtualKeyCode::Left => {
-                            if !self.paused {
-                                self.left_block_set();
-                            }
+                        VirtualKeyCode::Left if !self.paused => {
+                            self.left_block_set();
                         }
                         _ => {}
                     }
@@ -139,8 +134,9 @@ impl GameSystem {
             self.down_block_set();
 
             if self.block_set.is_none() {
-                self.spawn_or_end(flow);
+                self.spawn_block_set();
             }
+            self.check_and_end(flow);
 
             self.last_update = Some(std::time::Instant::now());
         }
@@ -156,6 +152,14 @@ impl GameSystem {
                 && y < self.block_height as i32
                 && self.blocks[y as usize][x as usize].is_none()
         })
+    }
+
+    fn check_and_end(&mut self, flow: &mut game::GameSystemFlow) {
+        if !self.is_valid_placement(self.block_set.as_ref().unwrap()) {
+            *flow = game::GameSystemFlow::To(game::GameSystem::End(game::end::GameSystem::new(
+                self.score,
+            )));
+        }
     }
 
     fn spawn_block_set(&mut self) {
@@ -235,16 +239,6 @@ impl GameSystem {
         }
     }
 
-    fn spawn_or_end(&mut self, flow: &mut game::GameSystemFlow) {
-        self.spawn_block_set();
-
-        if !self.is_valid_placement(self.block_set.as_ref().unwrap()) {
-            *flow = game::GameSystemFlow::To(game::GameSystem::End(game::end::GameSystem::new(
-                self.score,
-            )));
-        }
-    }
-
     fn right_block_set(&mut self) {
         if let Some(block_set) = self.block_set.as_ref() {
             let mut cloned = block_set.clone();
@@ -291,7 +285,7 @@ impl GameSystem {
         }
     }
 
-    pub fn context(&self) -> GameContext {
+    pub fn context(&'_ self) -> GameContext<'_> {
         GameContext {
             blocks: &self.blocks,
             block_set: &self.block_set,

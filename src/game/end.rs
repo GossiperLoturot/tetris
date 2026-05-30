@@ -43,7 +43,7 @@ impl GameSystem {
         // nothing
     }
 
-    pub fn context(&self) -> GameContext {
+    pub fn context(&'_ self) -> GameContext<'_> {
         GameContext { score: &self.score }
     }
 }

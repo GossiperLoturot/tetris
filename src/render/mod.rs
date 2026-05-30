@@ -114,7 +114,7 @@ impl RenderSystem {
                         wgpu_glyph::Section::default()
                             .add_text(
                                 wgpu_glyph::Text::new(
-                                    "ARROWS: MOVE/ROTATE   SPACE: HARD DROP   P: PAUSE",
+                                    "ARROWS: MOVE    Z/X: ROTATE\nSPACE: HARD DROP    P: PAUSE",
                                 )
                                 .with_scale(constants::TEXT_SCALE * 0.75)
                                 .with_color(constants::color::TEXT),
@@ -201,7 +201,9 @@ impl RenderSystem {
                             ),
                         wgpu_glyph::Section::default()
                             .add_text(
-                                wgpu_glyph::Text::new("P: PAUSE")
+                                wgpu_glyph::Text::new(
+                                    "ARROWS: MOVE    Z/X: ROTATE\nSPACE: HARD DROP    P: PAUSE"
+                                )
                                     .with_scale(constants::TEXT_SCALE * 0.75)
                                     .with_color(constants::color::TEXT_PLAYING),
                             )

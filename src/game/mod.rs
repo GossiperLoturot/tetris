@@ -35,7 +35,7 @@ impl GameSystem {
         flow.apply(self);
     }
 
-    pub fn context(&self) -> GameContext {
+    pub fn context(&'_ self) -> GameContext<'_> {
         match self {
             GameSystem::Start(system) => GameContext::Start(system.context()),
             GameSystem::Playing(system) => GameContext::Playing(system.context()),
