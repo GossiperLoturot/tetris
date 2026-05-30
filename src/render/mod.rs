@@ -111,6 +111,23 @@ impl RenderSystem {
                                     .h_align(wgpu_glyph::HorizontalAlign::Center)
                                     .v_align(wgpu_glyph::VerticalAlign::Center),
                             ),
+                        wgpu_glyph::Section::default()
+                            .add_text(
+                                wgpu_glyph::Text::new(
+                                    "ARROWS: MOVE    Z/X: ROTATE\nSPACE: HARD DROP    P: PAUSE",
+                                )
+                                .with_scale(constants::TEXT_SCALE * 0.75)
+                                .with_color(constants::color::TEXT),
+                            )
+                            .with_screen_position((
+                                self.config.width as f32 * 0.5,
+                                self.config.height as f32 * 0.5 + constants::TEXT_SCALE * 2.5,
+                            ))
+                            .with_layout(
+                                wgpu_glyph::Layout::default()
+                                    .h_align(wgpu_glyph::HorizontalAlign::Center)
+                                    .v_align(wgpu_glyph::VerticalAlign::Center),
+                            ),
                     ],
                 );
             }
@@ -167,21 +184,62 @@ impl RenderSystem {
                     &self.device,
                     &self.queue,
                     &view,
-                    &[wgpu_glyph::Section::default()
-                        .add_text(
-                            wgpu_glyph::Text::new(&format!("SCORE: {}", cx.score))
-                                .with_scale(constants::TEXT_SCALE)
-                                .with_color(constants::color::TEXT_PLAYING),
-                        )
-                        .with_screen_position((
-                            self.config.width as f32 * 0.5,
-                            constants::TEXT_SCALE * 0.5,
-                        ))
-                        .with_layout(
-                            wgpu_glyph::Layout::default()
-                                .h_align(wgpu_glyph::HorizontalAlign::Center),
-                        )],
+                    &[
+                        wgpu_glyph::Section::default()
+                            .add_text(
+                                wgpu_glyph::Text::new(&format!("SCORE: {}", cx.score))
+                                    .with_scale(constants::TEXT_SCALE)
+                                    .with_color(constants::color::TEXT_PLAYING),
+                            )
+                            .with_screen_position((
+                                self.config.width as f32 * 0.5,
+                                constants::TEXT_SCALE * 0.5,
+                            ))
+                            .with_layout(
+                                wgpu_glyph::Layout::default()
+                                    .h_align(wgpu_glyph::HorizontalAlign::Center),
+                            ),
+                        wgpu_glyph::Section::default()
+                            .add_text(
+                                wgpu_glyph::Text::new(
+                                    "ARROWS: MOVE    Z/X: ROTATE\nSPACE: HARD DROP    P: PAUSE"
+                                )
+                                    .with_scale(constants::TEXT_SCALE * 0.75)
+                                    .with_color(constants::color::TEXT_PLAYING),
+                            )
+                            .with_screen_position((
+                                self.config.width as f32 - constants::TEXT_SCALE,
+                                constants::TEXT_SCALE * 0.5,
+                            ))
+                            .with_layout(
+                                wgpu_glyph::Layout::default()
+                                    .h_align(wgpu_glyph::HorizontalAlign::Right),
+                            ),
+                    ],
                 );
+
+                if *cx.paused {
+                    self.text_pipeline.render(
+                        &self.device,
+                        &self.queue,
+                        &view,
+                        &[wgpu_glyph::Section::default()
+                            .add_text(
+                                wgpu_glyph::Text::new("PAUSED")
+                                    .with_scale(constants::TEXT_SCALE * 2.0)
+                                    .with_color(constants::color::TEXT),
+                            )
+                            .with_screen_position((
+                                self.config.width as f32 * 0.5,
+                                self.config.height as f32 * 0.5,
+                            ))
+                            .with_layout(
+                                wgpu_glyph::Layout::default()
+                                    .h_align(wgpu_glyph::HorizontalAlign::Center)
+                                    .v_align(wgpu_glyph::VerticalAlign::Center),
+                            )],
+                    );
+                }
             }
             game::GameContext::End(cx) => {
                 self.text_pipeline.render(
@@ -213,6 +271,21 @@ impl RenderSystem {
                             .with_screen_position((
                                 self.config.width as f32 * 0.5,
                                 self.config.height as f32 * 0.5 + constants::TEXT_SCALE,
+                            ))
+                            .with_layout(
+                                wgpu_glyph::Layout::default()
+                                    .h_align(wgpu_glyph::HorizontalAlign::Center)
+                                    .v_align(wgpu_glyph::VerticalAlign::Center),
+                            ),
+                        wgpu_glyph::Section::default()
+                            .add_text(
+                                wgpu_glyph::Text::new("PRESS RETURN TO RESTART")
+                                    .with_scale(constants::TEXT_SCALE)
+                                    .with_color(constants::color::TEXT),
+                            )
+                            .with_screen_position((
+                                self.config.width as f32 * 0.5,
+                                self.config.height as f32 * 0.5 + constants::TEXT_SCALE * 2.5,
                             ))
                             .with_layout(
                                 wgpu_glyph::Layout::default()
