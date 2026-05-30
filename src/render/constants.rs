@@ -13,6 +13,7 @@ pub mod color {
     pub const FG_BLUE:      [f32; 3] = [0.000, 0.133, 1.000];
     pub const FG_ORANGE:    [f32; 3] = [1.000, 0.133, 0.000];
     pub const FG_PURPLE:    [f32; 3] = [0.133, 0.000, 1.000];
+    pub const MAX_HEIGHT:   [f32; 3] = [0.850, 0.850, 0.850];
     pub const TEXT:         [f32; 4] = [0.000, 0.000, 0.000, 1.000];
     pub const TEXT_PLAYING: [f32; 4] = [0.000, 0.000, 0.000, 0.800];
 }

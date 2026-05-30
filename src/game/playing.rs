@@ -13,23 +13,26 @@ pub enum BlockColor {
 }
 
 #[rustfmt::skip]
-const BLOCK_SET_TABLE: &[(&[(i32, i32)], BlockColor)] = &[
-    (&[(-1,  0), ( 0,  0), (1,  0), (2,  0)], BlockColor::Cyan),
-    (&[( 0,  0), ( 1,  0), (1,  1), (0,  1)], BlockColor::Yellow),
-    (&[(-1, -1), ( 0, -1), (0,  0), (1,  0)], BlockColor::Green),
-    (&[(-1,  0), ( 0,  0), (0, -1), (1, -1)], BlockColor::Red),
-    (&[(-1,  0), (-1, -1), (0, -1), (1, -1)], BlockColor::Blue),
-    (&[(-1, -1), ( 0, -1), (1, -1), (1,  0)], BlockColor::Orange),
-    (&[(-1, -1), ( 0, -1), (1, -1), (0,  0)], BlockColor::Purple),
+const BLOCK_SET_TABLE: &[(&[(i32, i32)], (f32, f32), BlockColor)] = &[
+    (&[(-1,  0), ( 0,  0), (1,  0), (2,  0)], (0.5, 0.5), BlockColor::Cyan),
+    (&[( 0,  0), ( 1,  0), (1,  1), (0,  1)], (0.5, 0.5), BlockColor::Yellow),
+    (&[(-1, -1), ( 0, -1), (0,  0), (1,  0)], (0.0, 0.0), BlockColor::Green),
+    (&[(-1,  0), ( 0,  0), (0, -1), (1, -1)], (0.0, 0.0), BlockColor::Red),
+    (&[(-1,  0), (-1, -1), (0, -1), (1, -1)], (0.0, 0.0), BlockColor::Blue),
+    (&[(-1, -1), ( 0, -1), (1, -1), (1,  0)], (0.0, 0.0), BlockColor::Orange),
+    (&[(-1, -1), ( 0, -1), (1, -1), (0,  0)], (0.0, 0.0), BlockColor::Purple),
 ];
 
 #[derive(Clone)]
 pub struct BlockSet {
     pub x: i32,
     pub y: i32,
+    pub rotation_origin: (f32, f32),
     pub color: BlockColor,
     pub content: Vec<(i32, i32)>,
 }
+
+pub const MAX_STACK_HEIGHT: i32 = 20;
 
 pub struct GameContext<'a> {
     pub blocks: &'a Vec<Vec<Option<BlockColor>>>,
@@ -61,8 +64,8 @@ impl GameSystem {
         Self {
             block_width,
             block_height,
-            spawn_block_x: 5,
-            spawn_block_y: 20,
+            spawn_block_x: 4,
+            spawn_block_y: 22,
             rng: rand::thread_rng(),
             blocks: vec![vec![None; block_width as usize]; block_height as usize],
             block_set: None,
@@ -96,8 +99,11 @@ impl GameSystem {
                             }
                             self.check_and_end(flow);
                         }
-                        VirtualKeyCode::Up | VirtualKeyCode::Z | VirtualKeyCode::X if !self.paused => {
-                            self.rotate_block_set();
+                        VirtualKeyCode::Up | VirtualKeyCode::X if !self.paused => {
+                            self.rotate_block_set(true);
+                        }
+                        VirtualKeyCode::Z if !self.paused => {
+                            self.rotate_block_set(false);
                         }
                         VirtualKeyCode::Down if !self.paused => {
                             self.down_block_set();
@@ -154,8 +160,8 @@ impl GameSystem {
         })
     }
 
-fn check_and_end(&self, flow: &mut game::GameSystemFlow) {
-        if !self.is_valid_placement(self.block_set.as_ref().unwrap()) {
+    fn check_and_end(&self, flow: &mut game::GameSystemFlow) {
+        if self.is_game_over() {
             *flow = game::GameSystemFlow::To(game::GameSystem::End(game::end::GameSystem::new(
                 self.score,
             )));
@@ -165,11 +171,12 @@ fn check_and_end(&self, flow: &mut game::GameSystemFlow) {
     fn spawn_block_set(&mut self) {
         use rand::seq::SliceRandom;
 
-        let (content, color) = BLOCK_SET_TABLE.choose(&mut self.rng).unwrap();
+        let (content, rotation_origin, color) = BLOCK_SET_TABLE.choose(&mut self.rng).unwrap();
 
         self.block_set = Some(BlockSet {
             x: self.spawn_block_x,
             y: self.spawn_block_y,
+            rotation_origin: *rotation_origin,
             color: color.clone(),
             content: content.to_vec(),
         });
@@ -194,18 +201,44 @@ fn check_and_end(&self, flow: &mut game::GameSystemFlow) {
         }
     }
 
-    fn rotate_block_set(&mut self) {
+    fn rotate_block_set(&mut self, clockwise: bool) {
         if let Some(block_set) = self.block_set.as_ref() {
             let mut cloned = block_set.clone();
 
             for (x, y) in cloned.content.iter_mut() {
-                (*x, *y) = (*y, -*x);
+                let (origin_x, origin_y) = cloned.rotation_origin;
+                let shift_x = *x as f32 - origin_x;
+                let shift_y = *y as f32 - origin_y;
+                let (rotated_x, rotated_y) = if clockwise {
+                    (shift_y, -shift_x)
+                } else {
+                    (-shift_y, shift_x)
+                };
+
+                *x = (origin_x + rotated_x).round() as i32;
+                *y = (origin_y + rotated_y).round() as i32;
             }
 
             if self.is_valid_placement(&cloned) {
                 self.block_set = Some(cloned);
             }
         }
+    }
+
+    fn is_game_over(&self) -> bool {
+        let placed_blocks_over_height = self
+            .blocks
+            .iter()
+            .enumerate()
+            .skip(MAX_STACK_HEIGHT as usize)
+            .any(|(_, line)| line.iter().any(|block| block.is_some()));
+        let spawned_block_collided = self
+            .block_set
+            .as_ref()
+            .map(|block_set| !self.is_valid_placement(block_set))
+            .unwrap_or(false);
+
+        placed_blocks_over_height || spawned_block_collided
     }
 
     fn down_block_set(&mut self) {

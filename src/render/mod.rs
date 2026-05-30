@@ -146,6 +146,16 @@ impl RenderSystem {
 
                 let mut instances = vec![];
 
+                for col in 0..constants::WIDTH as usize {
+                    let position = [
+                        col as f32 - constants::WIDTH * 0.5,
+                        game::playing::MAX_STACK_HEIGHT as f32 - 1.0 - constants::HEIGHT * 0.5,
+                        0.0,
+                    ];
+                    let color = constants::color::MAX_HEIGHT;
+                    instances.push(block::Instance { position, color });
+                }
+
                 for (row, items) in cx.blocks.iter().enumerate() {
                     for (col, item) in items.iter().enumerate() {
                         if let Some(block_color) = item.as_ref() {
