@@ -12,12 +12,10 @@ impl Pipeline {
         target_width: u32,
         target_height: u32,
     ) -> Self {
-        let staging_belt = wgpu::util::StagingBelt::new(1024);
+        let staging_belt = wgpu::util::StagingBelt::new(device.clone(), 1024);
 
-        let font = wgpu_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!(
-            "../../assets/fonts/Roboto-Regular.ttf"
-        ))
-        .unwrap();
+        let bytes = include_bytes!("../../assets/fonts/Roboto-Regular.ttf");
+        let font = wgpu_glyph::ab_glyph::FontArc::try_from_slice(bytes).unwrap();
 
         let glyph_blush =
             wgpu_glyph::GlyphBrushBuilder::using_font(font).build(device, target_format);

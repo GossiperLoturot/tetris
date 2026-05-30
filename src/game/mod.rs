@@ -15,7 +15,7 @@ pub enum GameSystem {
 }
 
 impl GameSystem {
-    pub fn input(&mut self, input: &winit::event::KeyboardInput) {
+    pub fn input(&mut self, input: &winit::event::KeyEvent) {
         let mut flow = GameSystemFlow::Default;
         match self {
             GameSystem::Start(system) => system.input(input, &mut flow),

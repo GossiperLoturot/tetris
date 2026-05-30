@@ -1,17 +1,18 @@
-use crate::game;
+use std::sync::Arc;
+
+use crate::{consts, game};
 
 mod bg;
 mod block;
 mod camera;
-mod constants;
 mod text;
 
 pub struct RenderSystem {
-    surface: wgpu::Surface,
+    surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
-    window: winit::window::Window,
+    window: Arc<winit::window::Window>,
     camera_resource: camera::Resource,
     bg_pipeline: bg::Pipeline,
     block_pipeline: block::Pipeline,
@@ -19,9 +20,9 @@ pub struct RenderSystem {
 }
 
 impl RenderSystem {
-    pub async fn new_async(window: winit::window::Window) -> Self {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
-        let surface = unsafe { instance.create_surface(&window) }.unwrap();
+    pub async fn new_async(window: Arc<winit::window::Window>) -> Self {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+        let surface = instance.create_surface(window.clone()).unwrap();
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::LowPower,
@@ -31,7 +32,7 @@ impl RenderSystem {
             .await
             .unwrap();
         let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor::default(), None)
+            .request_device(&wgpu::DeviceDescriptor::default())
             .await
             .unwrap();
         let inner_size = window.inner_size();
@@ -84,12 +85,12 @@ impl RenderSystem {
                         wgpu_glyph::Section::default()
                             .add_text(
                                 wgpu_glyph::Text::new("TETRIS")
-                                    .with_scale(constants::TEXT_SCALE * 4.0)
-                                    .with_color(constants::color::TEXT),
+                                    .with_scale(consts::TEXT_SCALE * 4.0)
+                                    .with_color(consts::text_color::TEXT_PRIMARY),
                             )
                             .with_screen_position((
                                 self.config.width as f32 * 0.5,
-                                self.config.height as f32 * 0.5 - constants::TEXT_SCALE * 4.0,
+                                self.config.height as f32 * 0.5 - consts::TEXT_SCALE * 4.0,
                             ))
                             .with_layout(
                                 wgpu_glyph::Layout::default()
@@ -99,12 +100,12 @@ impl RenderSystem {
                         wgpu_glyph::Section::default()
                             .add_text(
                                 wgpu_glyph::Text::new("PRESS RETURN TO PLAY")
-                                    .with_scale(constants::TEXT_SCALE)
-                                    .with_color(constants::color::TEXT),
+                                    .with_scale(consts::TEXT_SCALE)
+                                    .with_color(consts::text_color::TEXT_PRIMARY),
                             )
                             .with_screen_position((
                                 self.config.width as f32 * 0.5,
-                                self.config.height as f32 * 0.5 + constants::TEXT_SCALE,
+                                self.config.height as f32 * 0.5 + consts::TEXT_SCALE,
                             ))
                             .with_layout(
                                 wgpu_glyph::Layout::default()
@@ -116,12 +117,12 @@ impl RenderSystem {
                                 wgpu_glyph::Text::new(
                                     "ARROWS: MOVE    Z/X: ROTATE\nSPACE: HARD DROP    P: PAUSE",
                                 )
-                                .with_scale(constants::TEXT_SCALE * 0.75)
-                                .with_color(constants::color::TEXT),
+                                .with_scale(consts::TEXT_SCALE * 0.75)
+                                .with_color(consts::text_color::TEXT_PRIMARY),
                             )
                             .with_screen_position((
                                 self.config.width as f32 * 0.5,
-                                self.config.height as f32 * 0.5 + constants::TEXT_SCALE * 2.5,
+                                self.config.height as f32 * 0.5 + consts::TEXT_SCALE * 2.5,
                             ))
                             .with_layout(
                                 wgpu_glyph::Layout::default()
@@ -132,27 +133,15 @@ impl RenderSystem {
                 );
             }
             game::GameContext::Playing(cx) => {
-                fn color_to_data(value: &game::playing::BlockColor) -> [f32; 3] {
-                    match value {
-                        game::playing::BlockColor::Cyan => constants::color::FG_CYAN,
-                        game::playing::BlockColor::Yellow => constants::color::FG_YELLOW,
-                        game::playing::BlockColor::Green => constants::color::FG_GREEN,
-                        game::playing::BlockColor::Red => constants::color::FG_RED,
-                        game::playing::BlockColor::Blue => constants::color::FG_BLUE,
-                        game::playing::BlockColor::Orange => constants::color::FG_ORANGE,
-                        game::playing::BlockColor::Purple => constants::color::FG_PURPLE,
-                    }
-                }
-
                 let mut instances = vec![];
 
-                for col in 0..constants::WIDTH as usize {
+                for col in 0..consts::VIEW_WIDTH as usize {
                     let position = [
-                        col as f32 - constants::WIDTH * 0.5,
-                        constants::MAX_STACK_HEIGHT - constants::HEIGHT * 0.5,
+                        col as f32 - consts::VIEW_WIDTH * 0.5,
+                        consts::MAX_STACK_HEIGHT as f32 - consts::VIEW_HEIGHT * 0.5,
                         0.0,
                     ];
-                    let color = constants::color::BG_MAX_STACK;
+                    let color = consts::block_color::BG_MAX_STACK;
                     instances.push(block::Instance { position, color });
                 }
 
@@ -160,24 +149,24 @@ impl RenderSystem {
                     for (col, item) in items.iter().enumerate() {
                         if let Some(block_color) = item.as_ref() {
                             let position = [
-                                col as f32 - constants::WIDTH * 0.5,
-                                row as f32 - constants::HEIGHT * 0.5,
+                                col as f32 - consts::VIEW_WIDTH * 0.5,
+                                row as f32 - consts::VIEW_HEIGHT * 0.5,
                                 0.0,
                             ];
-                            let color = color_to_data(block_color);
+                            let color = consts::to_rgb(block_color);
                             instances.push(block::Instance { position, color });
                         }
                     }
                 }
 
-                if let Some(block_set) = cx.block_set.as_ref() {
-                    for (col, row) in block_set.content.iter() {
+                if let Some(active_mino) = cx.active_mino.as_ref() {
+                    for (col, row) in active_mino.blocks.iter() {
                         let position = [
-                            block_set.x as f32 + *col as f32 - constants::WIDTH * 0.5,
-                            block_set.y as f32 + *row as f32 - constants::HEIGHT * 0.5,
+                            active_mino.x as f32 + *col as f32 - consts::VIEW_WIDTH * 0.5,
+                            active_mino.y as f32 + *row as f32 - consts::VIEW_HEIGHT * 0.5,
                             0.0,
                         ];
-                        let color = color_to_data(&block_set.template.color);
+                        let color = consts::to_rgb(&active_mino.template.color);
                         instances.push(block::Instance { position, color })
                     }
                 }
@@ -198,12 +187,12 @@ impl RenderSystem {
                         wgpu_glyph::Section::default()
                             .add_text(
                                 wgpu_glyph::Text::new(&format!("SCORE: {}", cx.score))
-                                    .with_scale(constants::TEXT_SCALE)
-                                    .with_color(constants::color::TEXT_PLAYING),
+                                    .with_scale(consts::TEXT_SCALE)
+                                    .with_color(consts::text_color::TEXT_SECONDARY),
                             )
                             .with_screen_position((
                                 self.config.width as f32 * 0.5,
-                                constants::TEXT_SCALE * 0.5,
+                                consts::TEXT_SCALE * 0.5,
                             ))
                             .with_layout(
                                 wgpu_glyph::Layout::default()
@@ -214,12 +203,12 @@ impl RenderSystem {
                                 wgpu_glyph::Text::new(
                                     "ARROWS: MOVE    Z/X: ROTATE\nSPACE: HARD DROP    P: PAUSE",
                                 )
-                                .with_scale(constants::TEXT_SCALE * 0.75)
-                                .with_color(constants::color::TEXT_PLAYING),
+                                .with_scale(consts::TEXT_SCALE * 0.75)
+                                .with_color(consts::text_color::TEXT_SECONDARY),
                             )
                             .with_screen_position((
-                                self.config.width as f32 - constants::TEXT_SCALE,
-                                constants::TEXT_SCALE * 0.5,
+                                self.config.width as f32 - consts::TEXT_SCALE,
+                                consts::TEXT_SCALE * 0.5,
                             ))
                             .with_layout(
                                 wgpu_glyph::Layout::default()
@@ -236,8 +225,8 @@ impl RenderSystem {
                         &[wgpu_glyph::Section::default()
                             .add_text(
                                 wgpu_glyph::Text::new("PAUSED")
-                                    .with_scale(constants::TEXT_SCALE * 2.0)
-                                    .with_color(constants::color::TEXT),
+                                    .with_scale(consts::TEXT_SCALE * 2.0)
+                                    .with_color(consts::text_color::TEXT_PRIMARY),
                             )
                             .with_screen_position((
                                 self.config.width as f32 * 0.5,
@@ -252,6 +241,40 @@ impl RenderSystem {
                 }
             }
             game::GameContext::End(cx) => {
+                let mut instances = vec![];
+
+                for col in 0..consts::VIEW_WIDTH as usize {
+                    let position = [
+                        col as f32 - consts::VIEW_WIDTH * 0.5,
+                        consts::MAX_STACK_HEIGHT as f32 - consts::VIEW_HEIGHT * 0.5,
+                        0.0,
+                    ];
+                    let color = consts::block_color::BG_MAX_STACK;
+                    instances.push(block::Instance { position, color });
+                }
+
+                for (row, items) in cx.blocks.iter().enumerate() {
+                    for (col, item) in items.iter().enumerate() {
+                        if let Some(block_color) = item.as_ref() {
+                            let position = [
+                                col as f32 - consts::VIEW_WIDTH * 0.5,
+                                row as f32 - consts::VIEW_HEIGHT * 0.5,
+                                0.0,
+                            ];
+                            let color = consts::to_rgb(block_color);
+                            instances.push(block::Instance { position, color });
+                        }
+                    }
+                }
+
+                self.block_pipeline.set_instances(&self.queue, &instances);
+                self.block_pipeline.render(
+                    &self.device,
+                    &self.queue,
+                    &view,
+                    &self.camera_resource.bind_group,
+                );
+
                 self.text_pipeline.render(
                     &self.device,
                     &self.queue,
@@ -260,12 +283,12 @@ impl RenderSystem {
                         wgpu_glyph::Section::default()
                             .add_text(
                                 wgpu_glyph::Text::new("GAME OVER")
-                                    .with_scale(constants::TEXT_SCALE * 2.0)
-                                    .with_color(constants::color::TEXT),
+                                    .with_scale(consts::TEXT_SCALE * 2.0)
+                                    .with_color(consts::text_color::TEXT_PRIMARY),
                             )
                             .with_screen_position((
                                 self.config.width as f32 * 0.5,
-                                self.config.height as f32 * 0.5 - constants::TEXT_SCALE * 2.0,
+                                self.config.height as f32 * 0.5 - consts::TEXT_SCALE * 2.0,
                             ))
                             .with_layout(
                                 wgpu_glyph::Layout::default()
@@ -275,12 +298,12 @@ impl RenderSystem {
                         wgpu_glyph::Section::default()
                             .add_text(
                                 wgpu_glyph::Text::new(&format!("SCORE: {}", cx.score))
-                                    .with_scale(constants::TEXT_SCALE)
-                                    .with_color(constants::color::TEXT),
+                                    .with_scale(consts::TEXT_SCALE)
+                                    .with_color(consts::text_color::TEXT_PRIMARY),
                             )
                             .with_screen_position((
                                 self.config.width as f32 * 0.5,
-                                self.config.height as f32 * 0.5 + constants::TEXT_SCALE,
+                                self.config.height as f32 * 0.5 + consts::TEXT_SCALE,
                             ))
                             .with_layout(
                                 wgpu_glyph::Layout::default()
@@ -290,12 +313,12 @@ impl RenderSystem {
                         wgpu_glyph::Section::default()
                             .add_text(
                                 wgpu_glyph::Text::new("PRESS RETURN TO RESTART")
-                                    .with_scale(constants::TEXT_SCALE)
-                                    .with_color(constants::color::TEXT),
+                                    .with_scale(consts::TEXT_SCALE)
+                                    .with_color(consts::text_color::TEXT_PRIMARY),
                             )
                             .with_screen_position((
                                 self.config.width as f32 * 0.5,
-                                self.config.height as f32 * 0.5 + constants::TEXT_SCALE * 2.5,
+                                self.config.height as f32 * 0.5 + consts::TEXT_SCALE * 2.5,
                             ))
                             .with_layout(
                                 wgpu_glyph::Layout::default()

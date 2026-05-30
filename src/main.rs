@@ -1,44 +1,99 @@
+use std::sync::Arc;
+
+mod consts;
 mod game;
 mod render;
 
-fn main() {
-    let event_loop = winit::event_loop::EventLoopBuilder::new().build();
-    let window = winit::window::WindowBuilder::new()
-        .build(&event_loop)
-        .unwrap();
+pub struct State {
+    game_system: game::GameSystem,
+    render_system: render::RenderSystem,
+}
 
-    let mut game_system = game::GameSystem::Start(game::start::GameSystem::new());
-    let mut render_system = pollster::block_on(render::RenderSystem::new_async(window));
+impl State {
+    pub fn new(window: Arc<winit::window::Window>) -> Self {
+        let game_system = game::GameSystem::Start(game::start::GameSystem::new());
+        let render_system = pollster::block_on(render::RenderSystem::new_async(window));
 
-    use winit::event::Event;
-    use winit::event::StartCause;
-    use winit::event::WindowEvent;
-    event_loop.run(move |event, _, control_flow| match event {
-        Event::NewEvents(StartCause::Poll) => {
-            game_system.update();
+        Self {
+            game_system,
+            render_system,
         }
-        Event::WindowEvent { window_id, event } if render_system.match_id(window_id) => match event
-        {
-            WindowEvent::KeyboardInput { input, .. } => {
-                game_system.input(&input);
+    }
+}
+
+pub struct App {
+    state: Option<State>,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl App {
+    pub fn new() -> Self {
+        Self { state: None }
+    }
+}
+
+impl winit::application::ApplicationHandler for App {
+    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        let attrs = winit::window::WindowAttributes::default();
+        let window = Arc::new(event_loop.create_window(attrs).unwrap());
+        self.state = Some(State::new(window));
+    }
+
+    fn new_events(
+        &mut self,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+        cause: winit::event::StartCause,
+    ) {
+        let Some(state) = &mut self.state else {
+            return;
+        };
+
+        if cause == winit::event::StartCause::Poll {
+            state.game_system.update();
+        }
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &winit::event_loop::ActiveEventLoop,
+        window_id: winit::window::WindowId,
+        event: winit::event::WindowEvent,
+    ) {
+        let Some(state) = &mut self.state else {
+            return;
+        };
+
+        if !state.render_system.match_id(window_id) {
+            return;
+        }
+
+        match event {
+            winit::event::WindowEvent::RedrawRequested => {
+                state.render_system.render(state.game_system.context());
+                state.render_system.request_redraw();
             }
-            WindowEvent::CloseRequested => {
-                control_flow.set_exit();
+            winit::event::WindowEvent::CloseRequested => {
+                event_loop.exit();
             }
-            WindowEvent::Resized(new_inner_size) => {
-                render_system.resize(new_inner_size);
+            winit::event::WindowEvent::Resized(new_size) => {
+                state.render_system.resize(new_size);
             }
-            WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                render_system.resize(*new_inner_size);
+            winit::event::WindowEvent::KeyboardInput { event, .. } => {
+                state.game_system.input(&event);
             }
             _ => {}
-        },
-        Event::RedrawRequested(window_id) if render_system.match_id(window_id) => {
-            render_system.render(game_system.context());
         }
-        Event::RedrawEventsCleared => {
-            render_system.request_redraw();
-        }
-        _ => {}
-    });
+    }
+}
+
+fn main() {
+    let event_loop = winit::event_loop::EventLoop::with_user_event().build().unwrap();
+    let mut app = App::new();
+    event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
+    event_loop.run_app(&mut app).unwrap();
 }

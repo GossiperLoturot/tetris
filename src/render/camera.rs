@@ -1,8 +1,10 @@
-use crate::render::constants;
+use cgmath::{Matrix4, Point3, Vector3};
 use wgpu::util::DeviceExt;
 
+use crate::consts;
+
 #[rustfmt::skip]
-const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
+const OPENGL_TO_WGPU_MATRIX: Matrix4<f32> = Matrix4::new(
     1.0, 0.0, 0.0, 0.0,
     0.0, 1.0, 0.0, 0.0,
     0.0, 0.0, 0.5, 0.0,
@@ -17,9 +19,9 @@ pub struct RawCamera {
 
 #[derive(Debug)]
 pub struct Camera {
-    pub eye: cgmath::Point3<f32>,
-    pub target: cgmath::Vector3<f32>,
-    pub up: cgmath::Vector3<f32>,
+    pub eye: Point3<f32>,
+    pub target: Vector3<f32>,
+    pub up: Vector3<f32>,
     pub w_range: f32,
     pub h_range: f32,
     pub z_near: f32,
@@ -28,7 +30,7 @@ pub struct Camera {
 
 impl Camera {
     pub fn build(&self) -> RawCamera {
-        let view = cgmath::Matrix4::look_to_rh(self.eye, self.target, self.up);
+        let view = Matrix4::look_to_rh(self.eye, self.target, self.up);
         let proj = cgmath::ortho(
             -self.w_range * 0.5,
             self.w_range * 0.5,
@@ -55,15 +57,15 @@ pub struct Resource {
 impl Resource {
     pub fn new(device: &wgpu::Device, width: u32, height: u32) -> Self {
         let (clipping_width, clipping_height) = Self::get_contain_clipping(
-            constants::WIDTH,
-            constants::HEIGHT,
+            consts::VIEW_WIDTH,
+            consts::VIEW_HEIGHT,
             width as _,
             height as _,
         );
         let camera = Camera {
-            eye: cgmath::point3(0.0, 0.0, 10.0),
-            target: -cgmath::Vector3::unit_z(),
-            up: cgmath::Vector3::unit_y(),
+            eye: Point3::new(0.0, 0.0, 10.0),
+            target: -Vector3::unit_z(),
+            up: Vector3::unit_y(),
             w_range: clipping_width,
             h_range: clipping_height,
             z_near: 0.001,
@@ -109,8 +111,8 @@ impl Resource {
 
     pub fn resize(&mut self, queue: &wgpu::Queue, width: u32, height: u32) {
         let (clipping_width, clipping_height) = Self::get_contain_clipping(
-            constants::WIDTH,
-            constants::HEIGHT,
+            consts::VIEW_WIDTH,
+            consts::VIEW_HEIGHT,
             width as _,
             height as _,
         );

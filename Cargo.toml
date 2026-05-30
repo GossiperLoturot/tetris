@@ -6,8 +6,8 @@ edition = "2021"
 [dependencies]
 bytemuck = { version = "1", features = ["derive"] }
 cgmath = "0.18"
-pollster = "0.3"
-rand = "0.8"
-wgpu = "0.16"
-wgpu_glyph = "0.20"
-winit = { version = "0.28", default-features = false, features = ["x11", "wayland"] }
+pollster = "0.4"
+rand = "0.10"
+wgpu = "28"
+wgpu_glyph = "0.28"
+winit = { version = "0.30", default-features = false, features = ["wayland", "rwh_06"] }
